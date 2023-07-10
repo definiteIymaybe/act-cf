@@ -23,11 +23,20 @@ const arraytoCSV = (array, delim = '\t') => {
 		throw new Error('Array is empty. Cannot write CSV file.');
 	}
 
-	console.log({array});
-
 	const keysSet = new Set(array.flatMap(o => Object.keys(o)));
 	const header = [...keysSet].join(delim);
-	const rows = array.map(o => Object.values(o).join(delim));
+
+	const rows = [];
+
+	for (const object of array) {
+		const row = [];
+		for (const key of keysSet) {
+			row.push(object[key]);
+		}
+
+		rows.push(row.join(delim));
+	}
+
 	const csv = [header, ...rows].join('\n');
 	return csv;
 };
