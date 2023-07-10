@@ -1,0 +1,53 @@
+name: dns
+on:
+  schedule:
+    - cron: 0 * * * *
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/dns.yml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RAW_DIR: data/dns/raw
+      DATETIME: ${{ github.event.schedule_time }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          token: ${{secrets.PAT}}
+      - name: ensure dirs
+        run: mkdir -p $RAW_DIR && mkdir -p data/zones
+      - name: get zones
+        env:
+          TOKEN: ${{secrets.TOKEN}}
+          API: ${{secrets.API}}
+        run: |
+          curl -X GET "${API}/zones" \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type:application/json" | jq --indent 2 '.result' > $RAW_DIR/zones.json
+          node index.js "$RAW_DIR/zones.json"
+      - name: get records by zone id
+        run: |
+          JSON=$(cat data/raw/zones.json)
+          IDS=$(echo "$JSON" | jq -r '.[].id')
+
+          for ID in $IDS; do
+            NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
+            curl -X GET "${API}/zones/$ID/dns_records?per_page=500" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" | jq --indent 2 '.result' > "$RAW_DIR/zones/${NAME}.json"
+              node index.js "$RAW_DIR/records/${NAME}.json"
+          done
+      - name: push
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.PAT }}
+          DATE_TIME: $(date)
+        with:
+          source-directory: data
+          destination-github-username: ${{ secrets.USER }}
+          destination-repository-name: data-cf-dns
+          commit-message: Update data [action] - $DATETIME
+          target-branch: main
