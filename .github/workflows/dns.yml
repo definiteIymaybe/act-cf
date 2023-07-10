@@ -18,27 +18,29 @@ jobs:
         with:
           token: ${{secrets.PAT}}
       - name: ensure dirs
-        run: mkdir -p $RAW_DIR && mkdir -p data/records
+        run: mkdir -p "${RAW_DIR}/records" && mkdir -p data/dns/records
       - name: get zones
         env:
           TOKEN: ${{secrets.TOKEN}}
           API: ${{secrets.API}}
         run: |
+          FILE="${RAW_DIR}/zones.json"
           curl -X GET "${API}/zones" \
           -H "Authorization: Bearer $TOKEN" \
-          -H "Content-Type:application/json" | jq --indent 2 '.result' > $RAW_DIR/zones.json
-          node index.js "$RAW_DIR/zones.json"
+          -H "Content-Type:application/json" | jq --indent 2 '.result' > "$FILE"
+          node index.js "$FILE"
       - name: get records by zone id
         run: |
-          JSON=$(cat data/raw/zones.json)
+          JSON=$(cat data/dns/raw/zones.json)
           IDS=$(echo "$JSON" | jq -r '.[].id')
 
           for ID in $IDS; do
             NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
+            FILE="${RAW_DIR}/records/${NAME}.json"
             curl -X GET "${API}/zones/$ID/dns_records?per_page=500" \
               -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" | jq --indent 2 '.result' > "$RAW_DIR/records/${NAME}.json"
-              node index.js "$RAW_DIR/records/${NAME}.json"
+              -H "Content-Type: application/json" | jq --indent 2 '.result' > "$FILE"
+              node index.js "$FILE"
           done
       - name: push
         uses: cpina/github-action-push-to-another-repository@main
