@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RAW_DIR: data/dns/raw
-      DATETIME: ${{ github.event.schedule_time }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -46,7 +45,7 @@ jobs:
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.PAT }}
-          DATE_TIME: $(date)
+          DATETIME: ${{ github.event.schedule_time }}
         with:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
