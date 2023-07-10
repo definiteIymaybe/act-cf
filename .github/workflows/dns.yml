@@ -38,8 +38,10 @@ jobs:
           for ID in $IDS; do
             NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
             echo name: $NAME
+            URL="${API}/zones/${ID}/dns_records?per_page=500"
+            echo url $URL
 
-            curl -X GET "${API}/zones/${ID}/dns_records?per_page=500" \
+            curl -X GET $URL \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" | jq --indent 2 '.result' > "${RAW_DIR}/records/${NAME}.json"
             node index.js "${RAW_DIR}/records/${NAME}.json"
