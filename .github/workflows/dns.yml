@@ -31,10 +31,13 @@ jobs:
       - name: get records by zone id
         run: |
           JSON=$(cat data/dns/raw/zones.json)
+          echo json: $JSON
           IDS=$(echo "$JSON" | jq -r '.[].id')
+          echo ids: $IDS
 
           for ID in $IDS; do
             NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
+            echo name: $NAME
 
             curl -X GET "${API}/zones/$ID/dns_records?per_page=500" \
               -H "Authorization: Bearer $TOKEN" \
@@ -50,5 +53,5 @@ jobs:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-cf-dns
-          commit-message: Update data [action] - ${{ github.event.schedule_time }}
+          commit-message: Update data [action]
           target-branch: main
