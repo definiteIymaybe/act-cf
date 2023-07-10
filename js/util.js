@@ -31,7 +31,14 @@ const arraytoCSV = (array, delim = '\t') => {
 	for (const object of array) {
 		const row = [];
 		for (const key of keysSet) {
-			row.push(object[key]);
+			const value = object[key];
+
+			if (typeof value === 'string' && value.includes(delim)) {
+				row.push(`"${value}"`);
+				continue;
+			}
+
+			row.push(value);
 		}
 
 		rows.push(row.join(delim));
