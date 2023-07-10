@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RAW_DIR: data/dns/raw
+      TOKEN: ${{secrets.TOKEN}}
+      API: ${{secrets.API}}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -19,9 +21,6 @@ jobs:
       - name: ensure dirs
         run: mkdir -p "${RAW_DIR}/records" && mkdir -p data/dns/records
       - name: get zones
-        env:
-          TOKEN: ${{secrets.TOKEN}}
-          API: ${{secrets.API}}
         run: |
           ZONES_FILE="${RAW_DIR}/zones.json"
           curl -X GET "${API}/zones" \
