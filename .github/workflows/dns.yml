@@ -25,7 +25,7 @@ jobs:
           ZONES_FILE="${RAW_DIR}/zones.json"
           curl -X GET "${API}/zones" \
           -H "Authorization: Bearer $TOKEN" \
-          -H "Content-Type:application/json" | jq --indent 2 '.result[] | (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end)' > "$ZONES_FILE"
+          -H "Content-Type:application/json" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result'> "$ZONES_FILE"
           node index.js "$ZONES_FILE"
       - name: get records by zone id
         run: |
@@ -42,7 +42,7 @@ jobs:
 
             curl -X GET $URL \
               -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" | jq --indent 2 '.result[] |= (if .development_mode? and .development_mode < 0 then .development_mode = "-" else . end) | .result' > "${RAW_DIR}/records/${NAME}.json"
+              -H "Content-Type: application/json" | jq --indent 2 '.result' > "${RAW_DIR}/records/${NAME}.json"
             node index.js "${RAW_DIR}/records/${NAME}.json"
           done
       - name: push
