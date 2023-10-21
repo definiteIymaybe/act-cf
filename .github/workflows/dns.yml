@@ -1,52 +1,59 @@
-name: dns
+name: Update DNS Data
+
 on:
   schedule:
-    - cron: 0 * * * *
-  workflow_dispatch: {}
+    - cron: '0 * * * *'
+  workflow_dispatch:
   push:
     paths:
-      - .github/workflows/dns.yml
+      - .github/workflows/update-dns-data.yml
+
 jobs:
-  build:
+  fetch-and-update-dns-data:
     runs-on: ubuntu-latest
     env:
-      RAW_DIR: data/dns/raw
-      TOKEN: ${{secrets.TOKEN}}
-      API: ${{secrets.API}}
+      DATA_DIRECTORY: data/dns
+      RAW_DIRECTORY: data/dns/raw
+      AUTH_TOKEN: ${{secrets.TOKEN}}
+      API_ENDPOINT: ${{secrets.API}}
     steps:
-      - name: checkout
+      - name: Checkout Repository
         uses: actions/checkout@v2
         with:
           token: ${{secrets.PAT}}
-      - name: ensure dirs
-        run: mkdir -p "${RAW_DIR}/records" && mkdir -p data/dns/records
-      - name: get zones
-        run: |
-          ZONES_FILE="${RAW_DIR}/zones.json"
-          curl -X GET "${API}/zones" \
-          -H "Authorization: Bearer $TOKEN" \
-          -H "Content-Type:application/json" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result'> "$ZONES_FILE"
-          node index.js "$ZONES_FILE"
-      - name: get records by zone id
-        run: |
-          JSON=$(cat data/dns/raw/zones.json)
-          echo json: $JSON
-          IDS=$(echo "$JSON" | jq -r '.[].id')
-          echo ids: $IDS
 
-          for ID in $IDS; do
-            NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
-            echo name: $NAME
-            URL="${API}/zones/${ID}/dns_records?per_page=500"
-            echo url $URL
+      - name: Ensure Necessary Directories Exist
+        run: |
+          mkdir -p "${RAW_DIRECTORY}/records"
+          mkdir -p "${DATA_DIRECTORY}/records"
 
-            curl -X GET $URL \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" | jq --indent 2 '.result' > "${RAW_DIR}/records/${NAME}.json"
-            node index.js "${RAW_DIR}/records/${NAME}.json"
+      - name: Fetch Zones Data
+        run: |
+          ZONES_PATH="${RAW_DIRECTORY}/zones.json"
+          curl -X GET "${API_ENDPOINT}/zones" \
+          -H "Authorization: Bearer $AUTH_TOKEN" \
+          -H "Content-Type:application/json" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result'> "$ZONES_PATH"
+          node process-data.js "$ZONES_PATH"
+
+      - name: Fetch Records for Each Zone
+        run: |
+          ZONES_DATA=$(cat "${RAW_DIRECTORY}/zones.json")
+          ZONE_IDS=$(echo "$ZONES_DATA" | jq -r '.[].id')
+
+          for ZONE_ID in $ZONE_IDS; do
+            ZONE_NAME=$(echo "$ZONES_DATA" | jq -r --arg id "$ZONE_ID" '.[] | select(.id == $id) | .name')
+            RECORDS_URL="${API_ENDPOINT}/zones/${ZONE_ID}/dns_records?per_page=500"
+            RECORDS_PATH="${RAW_DIRECTORY}/records/${ZONE_NAME}.json"
+
+            curl -X GET $RECORDS_URL \
+              -H "Authorization: Bearer $AUTH_TOKEN" \
+              -H "Content-Type: application/json" | jq --indent 2 '.result' > "$RECORDS_PATH"
+            node process-data.js "$RECORDS_PATH"
           done
+
       - name: Set current date as env variable
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
+
       - name: push
         uses: cpina/github-action-push-to-another-repository@main
         env:
