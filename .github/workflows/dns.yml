@@ -49,10 +49,9 @@ jobs:
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.PAT }}
-          DATETIME: ${{ github.event.schedule_time }}
         with:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-cf-dns
-          commit-message: Update data [action]
+          commit-message: Updated DNS data at ${{ github.event.schedule_time }}
           target-branch: main
