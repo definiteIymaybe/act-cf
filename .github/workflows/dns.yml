@@ -1,54 +1,49 @@
-name: Update DNS Data
-
+name: dns
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: 0 * * * *
+  workflow_dispatch: {}
   push:
     paths:
-      - .github/workflows/update-dns-data.yml
-
+      - .github/workflows/dns.yml
 jobs:
-  fetch-and-update-dns-data:
+  build:
     runs-on: ubuntu-latest
     env:
-      DATA_DIRECTORY: data/dns
-      RAW_DIRECTORY: data/dns/raw
-      AUTH_TOKEN: ${{secrets.TOKEN}}
-      API_ENDPOINT: ${{secrets.API}}
+      RAW_DIR: data/dns/raw
+      TOKEN: ${{secrets.TOKEN}}
+      API: ${{secrets.API}}
     steps:
-      - name: Checkout Repository
+      - name: checkout
         uses: actions/checkout@v2
         with:
           token: ${{secrets.PAT}}
-
-      - name: Ensure Necessary Directories Exist
+      - name: ensure dirs
+        run: mkdir -p "${RAW_DIR}/records" && mkdir -p data/dns/records
+      - name: get zones
         run: |
-          mkdir -p "${RAW_DIRECTORY}/records"
-          mkdir -p "${DATA_DIRECTORY}/records"
-
-      - name: Fetch Zones Data
+          ZONES_FILE="${RAW_DIR}/zones.json"
+          curl -X GET "${API}/zones" \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type:application/json" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result'> "$ZONES_FILE"
+          node index.js "$ZONES_FILE"
+      - name: get records by zone id
         run: |
-          ZONES_PATH="${RAW_DIRECTORY}/zones.json"
-          curl -X GET "${API_ENDPOINT}/zones" \
-          -H "Authorization: Bearer $AUTH_TOKEN" \
-          -H "Content-Type:application/json" | jq --indent 2 '.result[] | .result'> "$ZONES_PATH"
-          node process-data.js "$ZONES_PATH"
+          JSON=$(cat data/dns/raw/zones.json)
+          echo json: $JSON
+          IDS=$(echo "$JSON" | jq -r '.[].id')
+          echo ids: $IDS
 
-      - name: Fetch Records for Each Zone
-        run: |
-          ZONES_DATA=$(cat "${RAW_DIRECTORY}/zones.json")
-          ZONE_IDS=$(echo "$ZONES_DATA" | jq -r '.[].id')
+          for ID in $IDS; do
+            NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
+            echo name: $NAME
+            URL="${API}/zones/${ID}/dns_records?per_page=500"
+            echo url $URL
 
-          for ZONE_ID in $ZONE_IDS; do
-            ZONE_NAME=$(echo "$ZONES_DATA" | jq -r --arg id "$ZONE_ID" '.[] | select(.id == $id) | .name')
-            RECORDS_URL="${API_ENDPOINT}/zones/${ZONE_ID}/dns_records?per_page=500"
-            RECORDS_PATH="${RAW_DIRECTORY}/records/${ZONE_NAME}.json"
-
-            curl -X GET $RECORDS_URL \
-              -H "Authorization: Bearer $AUTH_TOKEN" \
-              -H "Content-Type: application/json" | jq --indent 2 '.result' > "$RECORDS_PATH"
-            node process-data.js "$RECORDS_PATH"
+            curl -X GET $URL \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" | jq --indent 2 '.result' > "${RAW_DIR}/records/${NAME}.json"
+            node index.js "${RAW_DIR}/records/${NAME}.json"
           done
 
       - name: Set current date as env variable
@@ -62,5 +57,5 @@ jobs:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-cf-dns
-          commit-message: Updated DNS data $NOW
+          commit-message: Update data ${{env.NOW}}
           target-branch: main
