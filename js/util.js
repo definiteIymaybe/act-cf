@@ -14,151 +14,145 @@ export const compose = (...fns) => x => fns.reduce((v, f) => f(v), x);
  * @throws Will throw an error if reading or parsing fails.
  */
 export const readJSON = async file => {
-  try {
-    const data = await fs.readFile(file, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error(`Error reading JSON from ${file}:`, error);
-    throw error;
-  }
+	try {
+		const data = await fs.readFile(file, 'utf8');
+		return JSON.parse(data);
+	} catch (error) {
+		console.error(error);
+	}
 };
 
-/**
- * Writes data to a JSON file.
- * @param {string} file - Path to the file.
- * @param {Object} data - Data to write.
- * @param {Function} replacer - Replacer function.
- * @param {number} space - Number of spaces to indent.
- * @throws Will throw an error if writing fails.
- */
-export const writeJSON = async (file, data, replacer = null, space = 2) => {
-  try {
-    const json = JSON.stringify(data, replacer, space);
-    await fs.writeFile(file, json);
-  } catch (error) {
-    console.error(error);
-  }
+export const writeJSON = async (file, data, replacer = null, spaces = '\t') => {
+	try {
+		await fs.writeFile(file, JSON.stringify(data, replacer, spaces));
+	} catch (error) {
+		console.error(error);
+	}
 };
 
-/**
- * Escapes a value for CSV.
- * @param {string} value - Value to escape.
- * @return {string} Escaped value.
- */
-export const escapeCSV = value => {
-  if (typeof value !== 'string') {
-    return value;
-  }
-  return `"${value.replace(/"/g, '""')}"`;
+const arrayToCSV = (array, delimiter = '\t') => {
+	if (array.length === 0) {
+		throw new Error('Array is empty. Cannot write CSV file.');
+	}
+
+	const keysSet = new Set(array.flatMap(o => Object.keys(o)));
+	const header = [...keysSet].join(delimiter);
+
+	const rows = array.map(object => [...keysSet].map(key => {
+		let value = object[key];
+		if (typeof value === 'string') {
+			value = value.trim();
+
+			if (value.includes(delimiter)) {
+				return `"${value}"`;
+			}
+		}
+
+		return value;
+	}).join(delimiter));
+
+	return [header, ...rows].join('\n');
 };
 
-/**
- * Converts an array of objects to a CSV string.
- * @param {Array} array - Array of objects.
- * @param {string} delim - Delimiter to use.
- * @return {string} CSV string.
- * @throws Will throw an error if the array is empty.
- */
-
-export const arraytoCSV = (array, delim = '\t') => {
-  if (array.length === 0) {
-    throw new Error('Array is empty. Cannot write CSV file.');
-  }
-
-  const keys = [...new Set(array.flatMap(o => Object.keys(o)))];
-
-  const header = keys.map(k => escapeCSV(k)).join(delim);
-  const rows = array.map(o => keys.map(key => escapeCSV(o[key])).join(delim),
-  );
-
-  return [header, ...rows].join('\n');
+export const writeCSV = async (file, array, delimiter) => {
+	try {
+		const csv = arrayToCSV(array, delimiter);
+		await fs.writeFile(file, csv);
+	} catch (error) {
+		console.error(error);
+	}
 };
 
-/**
- * Writes data to a CSV file.
- * @param {string} file - Path to the file.
- * @param {Array} array - Array of objects to write.
- * @param {string} delim - Delimiter to use.
- * @throws Will throw an error if writing fails.
- */
-
-export const writeCSV = async (file, array, delim) => {
-  try {
-    const csv = arraytoCSV(array, delim);
-    await fs.writeFile(file, csv);
-  } catch (error) {
-    console.error(error);
-  }
+export const writeData = (file, data, delimiter = '\t') => {
+	const fileType = delimiter === '\t' ? 'tsv' : 'csv';
+	const newFile = file.replace(/json$/, fileType);
+	return Promise.all([
+		writeJSON(file, data, null, 2),
+		writeCSV(newFile, data, delimiter),
+	]);
 };
 
-/**
- * Writes data to a JSON and a TSV file.
- * @param {string} file - Path to the file.
- * @param {Object} data - Data to write.
- * @throws Will throw an error if writing fails.
- */
+export const flattenObject = (json, prefix = '', delimiter = '.') => {
+	const result = {};
 
-export const writeJSONandTSV = async (file, data) => Promise.all([
-  await writeJSON(file, data, null, 2),
-  await writeCSV(file.replace(/json$/, 'tsv'), data, '\t'),
-]);
+	for (const [key, value] of Object.entries(json)) {
+		const newKey = prefix ? `${prefix}${delimiter}${key}` : key;
 
-/**
- * Flattens a JSON object.
- * @param {Object} json - JSON object to flatten.
- * @return {Object} Flattened JSON object.
- *
- * Example:
- *
- * Input:   { a: { b: { c: 1 } } }
- * Output:  { a.b.c: 1 }
- */
+		if (value && typeof value === 'object' && !Array.isArray(value)) {
+			Object.assign(result, flattenObject(value, newKey, delimiter));
+		} else {
+			result[newKey] = value;
+		}
+	}
 
-export const flattenJSON = json => {
-  const result = {};
-  for (const [key, value] of Object.entries(json)) {
-    if (value && !Array.isArray(value) && typeof value === 'object') {
-      for (const [subKey, subValue] of Object.entries(value)) {
-        result[`${key}.${subKey}`] = subValue;
-      }
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
+	return result;
 };
 
-/**
- * Removes common keys from an array of objects.
- * @param {Array} items - Array of objects.
- * @return {Array} Array of objects without common keys.
- *
- * Example:
- *
- * Input:    [{ a: 1, b: 2 },{ a: 1, c: 3 }]
- * Output:   [{ b: 2 },{ c: 3 }]
- */
+function isEqual(a, b) {
+	if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+		return a === b;
+	}
 
-export const removeCommonKeys = items => {
-  if (items.length === 0) {
-    return [];
-  }
+	const [aKeys, bKeys] = [a, b].map(o => Object.keys(o));
 
-  const firstObject = items[0];
+	if (aKeys.length !== bKeys.length) {
+		return false;
+	}
 
-  const keysToRemove = new Set(Object.keys(firstObject).filter(key =>
-    items.every(o => o[key] === firstObject[key]),
-  ));
+	for (const key of aKeys) {
+		if (!isEqual(a[key], b[key])) {
+			return false;
+		}
+	}
 
-  return items.map(o => {
-    const newObject = {};
-    for (const key of Object.keys(o)) {
-      if (keysToRemove.has(key)) {
-        continue;
-      } else {
-        newObject[key] = o[key];
-      }
-    }
-    return newObject;
-  });
+	return true;
+}
+
+export const removeSameKeyValues = (array, keep = [], remove = []) => {
+	if (array.length === 0) {
+		return array;
+	}
+
+	const keysToRemove = new Set([...(array), ...remove]);
+
+	console.log({keysToRemove});
+
+	for (const keptKey of keep) {
+		console.log({keptKey});
+
+		keysToRemove.delete(keptKey);
+	}
+
+	const result = array.map(o => removeKeys(o, keysToRemove));
+	return result;
 };
+
+export function removeKeys(object, keys) {
+	for (const key of keys) {
+		delete object[key];
+	}
+
+	return object;
+}
+
+function getKeysWithIdenticalValues(array) {
+	const allKeysInObjects = new Set(array.flatMap(o => Object.keys(o)));
+	const keysWithIdenticalValues = new Set();
+
+	for (const key of allKeysInObjects) {
+		const firstObjectKeyValue = array[0][key];
+
+		const areAllObjectKeyValuesEqual = array.slice(1).every(item => isEqual(item[key], firstObjectKeyValue));
+		if (areAllObjectKeyValuesEqual) {
+			console.log({key, firstObjectKeyValue});
+		}
+
+		if (areAllObjectKeyValuesEqual) {
+			keysWithIdenticalValues.add(key);
+		}
+	}
+
+	return keysWithIdenticalValues;
+}
+
+export const pipe = (...fns) => fns.reduce((f, g) => (...args) => g(f(...args)));

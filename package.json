@@ -1,17 +1,18 @@
 {
-	"name": "action-cf-dns",
-	"version": "1.0.0",
-	"type": "module",
-	"description": "",
-	"private": true,
-	"main": "index.js",
-	"scripts": {},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"dependencies": {},
-	"devDependencies": {
-		"xo": "^0.54.2",
-		"eslint-plugin-prefer-arrow": "^1.2.3"
-	}
+    "name": "action-cf-dns",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "",
+    "private": true,
+    "main": "index.js",
+    "scripts": {
+        "test": "xo"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "xo": "^0.56.0"
+    }
 }

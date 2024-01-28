@@ -32,7 +32,7 @@ jobs:
           ZONES_PATH="${RAW_DIRECTORY}/zones.json"
           curl -X GET "${API_ENDPOINT}/zones" \
           -H "Authorization: Bearer $AUTH_TOKEN" \
-          -H "Content-Type:application/json" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result'> "$ZONES_PATH"
+          -H "Content-Type:application/json" | jq --indent 2 '.result[] | .result'> "$ZONES_PATH"
           node process-data.js "$ZONES_PATH"
 
       - name: Fetch Records for Each Zone
