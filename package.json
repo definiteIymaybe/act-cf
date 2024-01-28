@@ -5,12 +5,14 @@
     "description": "",
     "private": true,
     "main": "index.js",
-    "scripts": {},
+    "scripts": {
+        "test": "xo"
+    },
     "keywords": [],
     "author": "",
     "license": "ISC",
-    "dependencies": {},
     "devDependencies": {
-        "xo": "^0.54.2"
+        "jest": "^29.7.0",
+        "xo": "^0.56.0"
     }
 }

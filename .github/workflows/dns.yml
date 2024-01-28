@@ -45,14 +45,17 @@ jobs:
               -H "Content-Type: application/json" | jq --indent 2 '.result' > "${RAW_DIR}/records/${NAME}.json"
             node index.js "${RAW_DIR}/records/${NAME}.json"
           done
+
+      - name: Set current date as env variable
+        run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
+
       - name: push
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.PAT }}
-          DATETIME: ${{ github.event.schedule_time }}
         with:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-cf-dns
-          commit-message: Update data [action]
+          commit-message: Update data ${{env.NOW}}
           target-branch: main
