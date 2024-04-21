@@ -41,8 +41,6 @@ const main = async () => {
 	const outputJSON = processJSON(json);
 	const outputFile = file.replace('raw/', '');
 
-	console.log({outputFile});
-
 	await writeJSONandTSV(outputFile, outputJSON);
 };
 
