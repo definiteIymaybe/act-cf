@@ -1,7 +1,6 @@
 import process from 'node:process';
 import {
 	readJSON,
-	writeData,
 	removeSameKeyValues,
 	flattenObject,
 	pipe,
@@ -27,7 +26,6 @@ export const main = async file => {
 	file ||= process.argv[2];
 
 	const array = await readJSON(file);
-	await writeData(file, array);
 
 	const outputJSON = processJSON(array);
 	const outputFile = file.replace('raw/', '');
