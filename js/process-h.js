@@ -37,18 +37,6 @@ const processJSON = json => {
 	return result;
 };
 
-const convertLabelsToArray = json => {
-	const result = json?.servers?.map(server => {
-		if (Array.isArray(server?.labels)) {
-			server.labels = server.labels.map(label => label.key);
-		}
-
-		return server;
-	});
-
-	return result;
-};
-
 const main = async () => {
 	const file = './data/raw/servers.json';
 	const outputDir = './data/processed';

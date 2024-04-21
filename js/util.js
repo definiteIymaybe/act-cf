@@ -59,7 +59,7 @@ export const arrayToCSV = (array, delim = '\t') => {
 	}
 
 	const keysSet = new Set(array.flatMap(o => Object.keys(o)));
-	const header = [...keysSet].join(delimiter);
+	const header = [...keysSet].join(delim);
 
 	let csv = header + '\n';
 
@@ -96,7 +96,7 @@ export const arrayToCSV = (array, delim = '\t') => {
 	return csv;
 };
 
-export const writeCSV = async (file, array, delimiter) => {
+export const writeCSV = async (file, array, delim) => {
 	try {
 		const csv = arrayToCSV(array, delim);
 		await fs.writeFile(file, csv);
@@ -109,42 +109,6 @@ export const writeJSONandTSV = async (file, data) => Promise.all([
 	writeJSON(file, data),
 	writeCSV(file.replace(/json$/, 'tsv'), data, '\t'),
 ]);
-
-export const flattenObject = (json, prefix = '', delimiter = '.') => {
-	const result = {};
-
-	for (const [key, value] of Object.entries(json)) {
-		const newKey = prefix ? `${prefix}${delimiter}${key}` : key;
-
-		if (value && typeof value === 'object' && !Array.isArray(value)) {
-			Object.assign(result, flattenObject(value, newKey, delimiter));
-		} else {
-			result[newKey] = value;
-		}
-	}
-
-	return result;
-};
-
-function isEqual(a, b) {
-	if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
-		return a === b;
-	}
-
-	const [aKeys, bKeys] = [a, b].map(o => Object.keys(o));
-
-	if (aKeys.length !== bKeys.length) {
-		return false;
-	}
-
-	for (const key of aKeys) {
-		if (!isEqual(a[key], b[key])) {
-			return false;
-		}
-	}
-
-	return true;
-}
 
 export const removeSameKeyValues = (array, keep = [], remove = []) => {
 	if (array.length === 0) {
@@ -173,24 +137,5 @@ export function removeKeys(object, keys) {
 	return object;
 }
 
-function getKeysWithIdenticalValues(array) {
-	const allKeysInObjects = new Set(array.flatMap(o => Object.keys(o)));
-	const keysWithIdenticalValues = new Set();
-
-	for (const key of allKeysInObjects) {
-		const firstObjectKeyValue = array[0][key];
-
-		const areAllObjectKeyValuesEqual = array.slice(1).every(item => isEqual(item[key], firstObjectKeyValue));
-		if (areAllObjectKeyValuesEqual) {
-			console.log({key, firstObjectKeyValue});
-		}
-
-		if (areAllObjectKeyValuesEqual) {
-			keysWithIdenticalValues.add(key);
-		}
-	}
-
-	return keysWithIdenticalValues;
-}
-
+// eslint-disable-next-line unicorn/no-array-reduce
 export const pipe = (...fns) => fns.reduce((f, g) => (...args) => g(f(...args)));
