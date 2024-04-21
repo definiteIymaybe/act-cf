@@ -59,7 +59,7 @@ export const arrayToCSV = (array, delim = '\t') => {
 	}
 
 	const keysSet = new Set(array.flatMap(o => Object.keys(o)));
-	const header = [...keysSet].join(delim);
+	const header = [...keysSet].join(delimiter);
 
 	let csv = header + '\n';
 
@@ -96,7 +96,7 @@ export const arrayToCSV = (array, delim = '\t') => {
 	return csv;
 };
 
-export const writeCSV = async (file, array, delim) => {
+export const writeCSV = async (file, array, delimiter) => {
 	try {
 		const csv = arrayToCSV(array, delim);
 		await fs.writeFile(file, csv);
@@ -110,57 +110,87 @@ export const writeJSONandTSV = async (file, data) => Promise.all([
 	writeCSV(file.replace(/json$/, 'tsv'), data, '\t'),
 ]);
 
-export const flattenJSON = json => {
+export const flattenObject = (json, prefix = '', delimiter = '.') => {
 	const result = {};
+
 	for (const [key, value] of Object.entries(json)) {
-		if (value && !Array.isArray(value) && typeof value === 'object') {
-			for (const [subKey, subValue] of Object.entries(value)) {
-				result[`${key}.${subKey}`] = subValue;
-			}
+		const newKey = prefix ? `${prefix}${delimiter}${key}` : key;
+
+		if (value && typeof value === 'object' && !Array.isArray(value)) {
+			Object.assign(result, flattenObject(value, newKey, delimiter));
 		} else {
-			result[key] = value;
+			result[newKey] = value;
 		}
 	}
 
 	return result;
 };
 
-export const removeSameKeyValues = (array, keep = []) => {
-	const keysToCheck = Array.from(
-		new Set(array.flatMap(object => Object.keys(object))),
-	);
+function isEqual(a, b) {
+	if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+		return a === b;
+	}
 
-	const keysToRemove = keysToCheck.filter(key => {
-		if (keep.includes(key)) {
+	const [aKeys, bKeys] = [a, b].map(o => Object.keys(o));
+
+	if (aKeys.length !== bKeys.length) {
+		return false;
+	}
+
+	for (const key of aKeys) {
+		if (!isEqual(a[key], b[key])) {
 			return false;
 		}
-
-		let result = true;
-
-		if (typeof array[0][key] === 'object') {
-			result = array.every(o =>
-				JSON.stringify(o[key]) === JSON.stringify(array[0][key]),
-			);
-		} else {
-			result = array.every(o => o[key] === array[0][key]);
-		}
-
-		return result;
-	});
-
-	for (const object of array) {
-		for (const key of keysToRemove) {
-			delete object[key];
-		}
 	}
 
-	return array;
+	return true;
+}
+
+export const removeSameKeyValues = (array, keep = [], remove = []) => {
+	if (array.length === 0) {
+		return array;
+	}
+
+	const keysToRemove = new Set([...(array), ...remove]);
+
+	console.log({keysToRemove});
+
+	for (const keptKey of keep) {
+		console.log({keptKey});
+
+		keysToRemove.delete(keptKey);
+	}
+
+	const result = array.map(o => removeKeys(o, keysToRemove));
+	return result;
 };
 
-export const removeKeys = (o, keys) => {
+export function removeKeys(object, keys) {
 	for (const key of keys) {
-		delete o[key];
+		delete object[key];
 	}
 
-	return o;
-};
+	return object;
+}
+
+function getKeysWithIdenticalValues(array) {
+	const allKeysInObjects = new Set(array.flatMap(o => Object.keys(o)));
+	const keysWithIdenticalValues = new Set();
+
+	for (const key of allKeysInObjects) {
+		const firstObjectKeyValue = array[0][key];
+
+		const areAllObjectKeyValuesEqual = array.slice(1).every(item => isEqual(item[key], firstObjectKeyValue));
+		if (areAllObjectKeyValuesEqual) {
+			console.log({key, firstObjectKeyValue});
+		}
+
+		if (areAllObjectKeyValuesEqual) {
+			keysWithIdenticalValues.add(key);
+		}
+	}
+
+	return keysWithIdenticalValues;
+}
+
+export const pipe = (...fns) => fns.reduce((f, g) => (...args) => g(f(...args)));

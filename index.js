@@ -1,44 +1,34 @@
 import process from 'node:process';
 import {
-	flattenJSON,
 	readJSON,
-	removeKeys,
+	writeData,
 	removeSameKeyValues,
-	writeJSONandTSV,
+	flattenObject,
+	pipe,
 } from './js/util.js';
 
-const excludedKeys = [
+const ignoreKeys = [
 	'plan.id',
 	'plan.name',
 	'development_mode',
 ];
 
-const keptKeys = [];
+const keepKeys = [];
 
-const processJSON = inputJSON => {
-	const processItem = o => {
-		const flat = flattenJSON(o);
-		const result = removeKeys(flat, excludedKeys);
-		return result;
-	};
+export function processJSON(input) {
+	return pipe(
+		array => array.map(object => flattenObject(object)),
+		array => removeSameKeyValues(array, keepKeys, ignoreKeys),
+	)(input);
+}
 
-	const processArray = (array = []) => {
-		let result = array.map(o => processItem(o));
-		result = removeSameKeyValues(result, keptKeys);
-		return result;
-	};
+export const main = async file => {
+	file ||= process.argv[2];
 
-	const result = processArray(inputJSON);
-	return result;
-};
+	const array = await readJSON(file);
+	await writeData(file, array);
 
-const main = async () => {
-	const file = process.argv[2];
-
-	const json = await readJSON(file);
-	await writeJSONandTSV(file, json);
-
-	const outputJSON = processJSON(json);
+	const outputJSON = processJSON(array);
 	const outputFile = file.replace('raw/', '');
 
 	await writeJSONandTSV(outputFile, outputJSON);
