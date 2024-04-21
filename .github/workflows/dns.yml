@@ -7,7 +7,7 @@ on:
     paths:
       - .github/workflows/dns.yml
 jobs:
-  build:
+  dns-scheduled:
     runs-on: ubuntu-latest
     env:
       RAW_DIR: data/dns/raw

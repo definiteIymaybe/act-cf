@@ -1,36 +1,59 @@
+#! /usr/bin/env node
 import fs from 'node:fs/promises';
 
-/**
- * Composes multiple functions into one.
- * @param {...Function} fns - Functions to compose.
- * @return {Function} Composed function.
- */
-export const compose = (...fns) => x => fns.reduce((v, f) => f(v), x);
+export const {writeFile} = fs;
 
-/**
- * Reads a JSON file and returns its content.
- * @param {string} file - Path to the file.
- * @return {Object} Parsed JSON content.
- * @throws Will throw an error if reading or parsing fails.
- */
+const isArrayOfStings = array => array.every(item => typeof item === 'string');
+
+export function flattenObject(o) {
+	const result = {};
+
+	for (const i in o) {
+		if (!Object.hasOwn(o, i)) {
+			continue;
+		}
+
+		if (Array.isArray(o[i])) {
+			result[i] = isArrayOfStings(o[i]) ? o[i].join(', ') : o[i];
+		}
+
+		if ((typeof o[i]) === 'object' && o[i] !== null) {
+			const flatObject = flattenObject(o[i]);
+			for (const x in flatObject) {
+				if (!Object.hasOwn(flatObject, x)) {
+					continue;
+				}
+
+				result[i + '.' + x] = flatObject[x];
+			}
+		} else {
+			result[i] = o[i];
+		}
+	}
+
+	return result;
+}
+
 export const readJSON = async file => {
 	try {
 		const data = await fs.readFile(file, 'utf8');
+
 		return JSON.parse(data);
-	} catch (error) {
-		console.error(error);
+	} catch {
+		console.error('error');
 	}
 };
 
-export const writeJSON = async (file, data, replacer = null, spaces = '\t') => {
+export const writeJSON = async (file, data, replacer = null, space = '\t') => {
 	try {
-		await fs.writeFile(file, JSON.stringify(data, replacer, spaces));
-	} catch (error) {
-		console.error(error);
+		const json = JSON.stringify(data, replacer, space);
+		await fs.writeFile(file, json);
+	} catch {
+		console.error('error');
 	}
 };
 
-const arrayToCSV = (array, delimiter = '\t') => {
+export const arrayToCSV = (array, delim = '\t') => {
 	if (array.length === 0) {
 		throw new Error('Array is empty. Cannot write CSV file.');
 	}
@@ -38,39 +61,54 @@ const arrayToCSV = (array, delimiter = '\t') => {
 	const keysSet = new Set(array.flatMap(o => Object.keys(o)));
 	const header = [...keysSet].join(delimiter);
 
-	const rows = array.map(object => [...keysSet].map(key => {
-		let value = object[key];
-		if (typeof value === 'string') {
-			value = value.trim();
+	let csv = header + '\n';
 
-			if (value.includes(delimiter)) {
-				return `"${value}"`;
+	for (const object of array) {
+		const row = [];
+
+		for (const key of keysSet) {
+			let value = object[key];
+
+			if (value === null || value === undefined) {
+				row.push('');
+				continue;
 			}
+
+			if (typeof value === 'object') {
+				value = Array.isArray(value) ? value.join(',') : JSON.stringify(value);
+			}
+
+			if (typeof value === 'string') {
+				if (value.includes(delim)) {
+					value = `"${value}"`;
+				}
+
+				// Escape quotes
+				value = value.replace(/"/g, '""');
+			}
+
+			row.push(value);
 		}
 
-		return value;
-	}).join(delimiter));
+		csv += row.join(delim) + '\n';
+	}
 
-	return [header, ...rows].join('\n');
+	return csv;
 };
 
 export const writeCSV = async (file, array, delimiter) => {
 	try {
-		const csv = arrayToCSV(array, delimiter);
+		const csv = arrayToCSV(array, delim);
 		await fs.writeFile(file, csv);
-	} catch (error) {
-		console.error(error);
+	} catch {
+		console.error('error');
 	}
 };
 
-export const writeData = (file, data, delimiter = '\t') => {
-	const fileType = delimiter === '\t' ? 'tsv' : 'csv';
-	const newFile = file.replace(/json$/, fileType);
-	return Promise.all([
-		writeJSON(file, data, null, 2),
-		writeCSV(newFile, data, delimiter),
-	]);
-};
+export const writeJSONandTSV = async (file, data) => Promise.all([
+	writeJSON(file, data),
+	writeCSV(file.replace(/json$/, 'tsv'), data, '\t'),
+]);
 
 export const flattenObject = (json, prefix = '', delimiter = '.') => {
 	const result = {};

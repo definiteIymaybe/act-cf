@@ -1,0 +1,47 @@
+name: hdata
+on:
+  schedule:
+    - cron: 0 * * * *
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/h.yml
+jobs:
+  hscheduled:
+    runs-on: ubuntu-latest
+    env:
+      USER_NAME: ${{secrets.USER}}
+      TOKEN: ${{secrets.HTOKEN}}
+      API: ${{secrets.HAPI}}
+      SERVERS_FILE: data/raw/servers.json
+      URL: https://api.hetzner.cloud/v1
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          token: ${{secrets.HPAT}}
+
+      - name: ensure dirs
+        run: mkdir -p data/raw && mkdir -p data/processed
+
+      - name: curl
+        run: |
+          curl -X GET "${API}/servers" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Content-Type:application/json" > $SERVERS_FILE
+              node js/process-h.js
+
+      - name: process
+        run: node ./js/process-h.js $SERVERS_FILE
+
+      - name: push
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          USER_NAME: ${{secrets.USER}}
+          API_TOKEN_GITHUB: ${{ secrets.HPAT }}
+        with:
+          source-directory: data
+          destination-github-username: ${{ secrets.USER }}
+          destination-repository-name: data-hetzner
+          commit-message: updated at ${{ github.event.schedule_time }}
+          target-branch: main

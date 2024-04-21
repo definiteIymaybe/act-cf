@@ -31,7 +31,7 @@ export const main = async file => {
 	const outputJSON = processJSON(array);
 	const outputFile = file.replace('raw/', '');
 
-	await writeData(outputFile, outputJSON);
+	await writeJSONandTSV(outputFile, outputJSON);
 };
 
 await main();
