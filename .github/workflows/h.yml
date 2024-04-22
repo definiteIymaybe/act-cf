@@ -34,14 +34,16 @@ jobs:
       - name: process
         run: node ./js/process-h.js $SERVERS_FILE
 
+      - name: Set current date as env variable
+        run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
+
       - name: push
         uses: cpina/github-action-push-to-another-repository@main
         env:
-          USER_NAME: ${{secrets.USER}}
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-hetzner
-          commit-message: updated at ${{ github.event.schedule_time }}
+          commit-message: updated at ${{env.NOW}}
           target-branch: main
