@@ -84,7 +84,7 @@ export const arrayToCSV = (array, delim = '\t') => {
 				}
 
 				// Escape quotes
-				value = value.replace(/"/g, '""');
+				value = value.replaceAll('"', '""');
 			}
 
 			row.push(value);
@@ -117,11 +117,7 @@ export const removeSameKeyValues = (array, keep = [], remove = []) => {
 
 	const keysToRemove = new Set([...(array), ...remove]);
 
-	console.log({keysToRemove});
-
 	for (const keptKey of keep) {
-		console.log({keptKey});
-
 		keysToRemove.delete(keptKey);
 	}
 
@@ -139,3 +135,23 @@ export function removeKeys(object, keys) {
 
 // eslint-disable-next-line unicorn/no-array-reduce
 export const pipe = (...fns) => fns.reduce((f, g) => (...args) => g(f(...args)));
+
+const round = (value, decimals) => Number(new Intl.NumberFormat('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals}).format(value));
+
+export function bytesToSize(bytes, decimals = 2, unit) {
+	if (bytes === 0) {
+		return '0';
+	}
+
+	const k = 1024;
+	let dm = decimals < 0 ? 0 : decimals;
+	const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+
+	const i = unit ? sizes.indexOf(unit) : Math.floor(Math.log(bytes) / Math.log(k));
+
+	if (sizes[i] === 'MB') {
+		dm = 0;
+	}
+
+	return `${round(bytes / (k ** i), dm)} ${sizes[i]}`;
+}
