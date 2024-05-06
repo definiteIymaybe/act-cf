@@ -1,41 +1,58 @@
 
 import {join} from 'node:path';
-import {arrayToCSV, flattenObject, readJSON, writeJSON, writeFile} from './util.js';
+import {arrayToCSV, flattenObject, readJSON, writeJSON, writeFile, bytesToSize} from './util.js';
 
-const processJSON = json => {
-	const priceTypes = ['hourly', 'monthly'];
-	const costTypes = ['net', 'gross'];
-	const result = json?.servers?.map(server => {
-		if (Array.isArray(server?.server_type?.prices)) {
-			server.server_type.prices = server.server_type.prices.map(datacenter => {
-				for (const priceType of priceTypes) {
-					const key = `price_${priceType}`;
-
-					for (const costType of costTypes) {
-						const costKey = `${costType}`;
-
-						try {
-							if (datacenter[key] && datacenter[key][costKey]) {
-								const number_ = Number.parseFloat(datacenter[key][costKey]);
-								datacenter[key][costKey] = number_.toFixed(10).replace(/\.?0+$/, '');
-								datacenter[key][costKey] = Number.parseFloat(datacenter[key][costKey]);
-							}
-						} catch {
-							console.error('error');
-						}
-					}
-				}
-
-				return datacenter;
-			});
+const mergeServerLabels = server => {
+	if (server?.labels && Object.keys(server.labels).length > 0) {
+		const hasNoValues = Object.values(server.labels).every(value => !value);
+		if (hasNoValues) {
+			server.labels = Object.keys(server.labels).join(', ');
 		}
+	}
 
-		delete server.datacenter.server_types;
-		return server;
-	});
-
-	return result;
+	return server;
 };
+
+const processServerPrices = server => {
+	if (!Array.isArray(server?.server_type?.prices)) {
+		return server;
+	}
+
+	const prices = {};
+
+	for (const datacenter of server.server_type.prices) {
+		if (datacenter.price_monthly && datacenter.price_monthly.gross) {
+			const key = datacenter.location;
+			prices[key] = Number.parseFloat(datacenter.price_monthly.gross);
+		}
+	}
+
+	server.server_type.prices = prices;
+
+	return server;
+};
+
+const convertBytesToSize = (keys, object) => {
+	for (const key of keys) {
+		if (object[key]) {
+			object[key] = bytesToSize(object[key]);
+		}
+	}
+
+	return object;
+};
+
+const processServerItem = o => {
+	delete o.datacenter.server_types;
+	let server = mergeServerLabels(o);
+	server = processServerPrices(o);
+	const trafficKeys = ['outgoing_traffic', 'ingoing_traffic', 'included_traffic'];
+	server.server_type = convertBytesToSize(trafficKeys, server.server_type);
+	server = convertBytesToSize(trafficKeys, server);
+	return server;
+};
+
+const processJSON = json => json?.servers?.map(server => processServerItem(server));
 
 const main = async () => {
 	const file = './data/raw/servers.json';
@@ -44,36 +61,7 @@ const main = async () => {
 
 	const inputJSON = await readJSON(file);
 	const processedJSON = processJSON(inputJSON);
-
-	const flatJSON = inputJSON.servers.map(server => {
-		delete server.server_type.prices;
-
-		if (server?.labels && Object.keys(server.labels).length > 0) {
-			const hasNoValues = Object.values(server.labels).every(value => !value);
-			if (hasNoValues) {
-				server.labels = Object.keys(server.labels).join(', ');
-			}
-		}
-
-		if (server.server_type.prices) {
-			server.server_type.prices.map(datacenter => {
-				const {
-					location,
-					price_monthly,
-					price_hourly,
-					...rest
-				} = datacenter;
-
-				return {
-					location,
-					price_monthly_gross: price_monthly.gross,
-					...rest,
-				};
-			});
-		}
-
-		return flattenObject(server);
-	});
+	const flatJSON = processedJSON.map(server => flattenObject(server));
 	const tsv = arrayToCSV(flatJSON, '\t');
 
 	await Promise.all([
