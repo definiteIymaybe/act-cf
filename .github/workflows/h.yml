@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - .github/workflows/h.yml
+
 jobs:
   hscheduled:
     runs-on: ubuntu-latest
@@ -23,20 +24,20 @@ jobs:
       - name: ensure dirs
         run: mkdir -p data/raw && mkdir -p data/processed
 
-      - name: curl
+      - name: fetch API data
         run: |
           curl -X GET "${API}/servers" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type:application/json" > $SERVERS_FILE
-              node js/process-h.js
+          node js/process-h.js
 
-      - name: process
+      - name: process full data
         run: node ./js/process-h.js $SERVERS_FILE
 
       - name: Set current date as env variable
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
-      - name: push
+      - name: push main
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
@@ -44,5 +45,19 @@ jobs:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-hetzner
-          commit-message: updated at ${{env.NOW}}
+          commit-message: "Full update at ${{env.NOW}}"
           target-branch: main
+
+      - name: process stable properties
+        run: node js/filter-dynamic-props.js data/processed/servers.json
+
+      - name: push static-props
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.HPAT }}
+        with:
+          source-directory: data
+          destination-github-username: ${{ secrets.USER }}
+          destination-repository-name: data-hetzner
+          commit-message: "Stable properties update at ${{env.NOW}}"
+          target-branch: static-props

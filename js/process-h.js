@@ -1,12 +1,18 @@
-
-import {join} from 'node:path';
-import {arrayToCSV, flattenObject, readJSON, writeJSON, writeFile, bytesToSize} from './util.js';
+import { join } from "node:path";
+import {
+	arrayToCSV,
+	bytesToSize,
+	flattenObject,
+	readJSON,
+	writeFile,
+	writeJSON,
+} from "./util.js";
 
 const mergeServerLabels = server => {
 	if (server?.labels && Object.keys(server.labels).length > 0) {
 		const hasNoValues = Object.values(server.labels).every(value => !value);
 		if (hasNoValues) {
-			server.labels = Object.keys(server.labels).join(', ');
+			server.labels = Object.keys(server.labels).join(", ");
 		}
 	}
 
@@ -34,9 +40,7 @@ const processServerPrices = server => {
 
 const convertBytesToSize = (keys, object) => {
 	for (const key of keys) {
-		if (object[key]) {
-			object[key] = bytesToSize(object[key]);
-		}
+		object[key] &&= bytesToSize(object[key]);
 	}
 
 	return object;
@@ -46,28 +50,33 @@ const processServerItem = o => {
 	delete o.datacenter.server_types;
 	let server = mergeServerLabels(o);
 	server = processServerPrices(o);
-	const trafficKeys = ['outgoing_traffic', 'ingoing_traffic', 'included_traffic'];
+	const trafficKeys = [
+		"outgoing_traffic",
+		"ingoing_traffic",
+		"included_traffic",
+	];
 	server.server_type = convertBytesToSize(trafficKeys, server.server_type);
 	server = convertBytesToSize(trafficKeys, server);
 	return server;
 };
 
-const processJSON = json => json?.servers?.map(server => processServerItem(server));
+const processJSON = json =>
+	json?.servers?.map(server => processServerItem(server));
 
 const main = async () => {
-	const file = './data/raw/servers.json';
-	const outputDir = './data/processed';
-	const filename = 'servers';
+	const file = "./data/raw/servers.json";
+	const outputFolder = "./data/processed";
+	const filename = "servers";
 
 	const inputJSON = await readJSON(file);
 	const processedJSON = processJSON(inputJSON);
 	const flatJSON = processedJSON.map(server => flattenObject(server));
-	const tsv = arrayToCSV(flatJSON, '\t');
+	const tsv = arrayToCSV(flatJSON, "\t");
 
 	await Promise.all([
-		writeJSON(join(outputDir, `${filename}.json`), processedJSON, null, 2),
-		writeJSON(join(outputDir, `${filename}.flat.json`), flatJSON, null, 2),
-		writeFile(join(outputDir, `${filename}.tsv`), tsv),
+		writeJSON(join(outputFolder, `${filename}.json`), processedJSON, null, 2),
+		writeJSON(join(outputFolder, `${filename}.flat.json`), flatJSON, null, 2),
+		writeFile(join(outputFolder, `${filename}.tsv`), tsv),
 	]);
 };
 
