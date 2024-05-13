@@ -1,0 +1,15 @@
+{
+	"parserOptions": {
+		"ecmaVersion": "latest",
+		"sourceType": "module"
+	},
+	"rules": {
+		"camelcase": ["warn"],
+		"capitalized-comments": ["off"],
+		"indent": ["error", "tab"],
+		"object-curly-spacing": ["error", "always"],
+		"quotes": ["error", "double"],
+		"react/prop-types": ["off"],
+		"unicorn/filename-case": ["off"]
+	}
+}
