@@ -49,7 +49,7 @@ jobs:
           target-branch: main
 
       - name: process stable properties
-        run: node js/filter-dynamic-props.js data/processed/servers.json
+        run: node js/get-static-props.js data/processed/servers.json
 
       - name: push static-props
         uses: cpina/github-action-push-to-another-repository@main
