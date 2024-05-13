@@ -37,7 +37,6 @@ export function flattenObject(o) {
 export const readJSON = async file => {
 	try {
 		const data = await fs.readFile(file, "utf8");
-
 		return JSON.parse(data);
 	} catch {
 		console.error("error");

@@ -42,21 +42,18 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: data
+          source-directory: data/processed
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-hetzner
           commit-message: "Full update at ${{env.NOW}}"
           target-branch: main
-
-      - name: process stable properties
-        run: node js/get-static-props.js data/processed/servers.json
 
       - name: push static-props
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: data
+          source-directory: data/processed-static
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-hetzner
           commit-message: "Stable properties update at ${{env.NOW}}"
