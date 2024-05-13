@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import fs from "node:fs/promises";
 import {
 	arrayToCSV,
 	bytesToSize,
@@ -38,46 +39,60 @@ const processServerPrices = server => {
 	return server;
 };
 
-const convertBytesToSize = (keys, object) => {
-	for (const key of keys) {
-		object[key] &&= bytesToSize(object[key]);
+const convertBytesToSize = object => {
+	for (const key in object) {
+		if (key.includes("ff") && object[key]) {
+			object[key] = bytesToSize(object[key]);
+		}
 	}
 
 	return object;
 };
 
-const processServerItem = o => {
+const processItem = o => {
 	delete o.datacenter.server_types;
 	let server = mergeServerLabels(o);
 	server = processServerPrices(o);
-	const trafficKeys = [
-		"outgoing_traffic",
-		"ingoing_traffic",
-		"included_traffic",
-	];
-	server.server_type = convertBytesToSize(trafficKeys, server.server_type);
-	server = convertBytesToSize(trafficKeys, server);
+	server.server_type = convertBytesToSize(server.server_type);
+	server = convertBytesToSize(server);
 	return server;
 };
 
-const processJSON = json =>
-	json?.servers?.map(server => processServerItem(server));
+const processJSON = json => json?.servers?.map(server => processItem(server));
+
+const removeDynamicProperties = data => {
+	const filterEntries = o => Object.entries(o).filter(([k]) => !k.includes("ff"));
+	const fromEntries = entries => Object.fromEntries(entries);
+	const filterObject = o => fromEntries(filterEntries(o));
+
+	return filterObject(data);
+};
+
+const processAndWriteData = async (folder, filename, data, isStatic = false) => {
+	const processedData = isStatic ? data.map(item => removeDynamicProperties(item)) : data;
+	const flatData = processedData.map(item => flattenObject(item));
+	const tsvData = arrayToCSV(flatData, "\t");
+
+	await Promise.all([
+		writeJSON(join(folder, `${filename}.json`), processedData, null, 2),
+		writeJSON(join(folder, `${filename}.flat.json`), flatData, null, 2),
+		writeFile(join(folder, `${filename}.tsv`), tsvData),
+	]);
+};
 
 const main = async () => {
 	const file = "./data/raw/servers.json";
-	const outputFolder = "./data/processed";
+	const folderProcessed = "./data/processed";
+	const folderProcessedStatic = "./data/processed-static";
 	const filename = "servers";
+
+	await fs.mkdir(folderProcessedStatic, { recursive: true });
 
 	const inputJSON = await readJSON(file);
 	const processedJSON = processJSON(inputJSON);
-	const flatJSON = processedJSON.map(server => flattenObject(server));
-	const tsv = arrayToCSV(flatJSON, "\t");
 
-	await Promise.all([
-		writeJSON(join(outputFolder, `${filename}.json`), processedJSON, null, 2),
-		writeJSON(join(outputFolder, `${filename}.flat.json`), flatJSON, null, 2),
-		writeFile(join(outputFolder, `${filename}.tsv`), tsv),
-	]);
+	await processAndWriteData(folderProcessed, filename, processedJSON);
+	await processAndWriteData(folderProcessedStatic, filename, processedJSON, true);
 };
 
 await main();
