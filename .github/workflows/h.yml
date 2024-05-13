@@ -47,6 +47,7 @@ jobs:
           destination-repository-name: data-hetzner
           commit-message: "Full update at ${{env.NOW}}"
           target-branch: main
+          create-target-branch-if-needed: true
 
       - name: push static-props
         uses: cpina/github-action-push-to-another-repository@main
@@ -58,3 +59,4 @@ jobs:
           destination-repository-name: data-hetzner
           commit-message: "Stable properties update at ${{env.NOW}}"
           target-branch: static-props
+          create-target-branch-if-needed: true
