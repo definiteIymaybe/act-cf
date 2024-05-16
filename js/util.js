@@ -1,45 +1,45 @@
 #! /usr/bin/env node
 
-import fs from 'node:fs/promises';
+import fs from "node:fs/promises";
 
 export const readJSON = async file => {
 	try {
-		const data = await fs.readFile(file, 'utf8');
+		const data = await fs.readFile(file, "utf8");
 		return JSON.parse(data);
 	} catch {
 		console.error("error");
 	}
 };
 
-export const {writeFile} = fs;
+export const { writeFile } = fs;
 
 export const writeJSON = async (file, data) => {
 	try {
-		await fs.writeFile(file, JSON.stringify(data, null, '\t'));
+		await fs.writeFile(file, JSON.stringify(data, null, "\t"));
 	} catch {
-		console.error('error');
+		console.error("error");
 	}
 };
 
-export const isArrayOfStringifiable = array => array.every(item => typeof item !== 'object' || item === null);
+export const isArrayOfStringifiable = array => array.every(item => typeof item !== "object" || item === null);
 
 export const filterKeys = (object, patterns, recursive = false) => Object.fromEntries(
 	Object.entries(object)
 		.filter(([key]) => !patterns.some(pattern => pattern.test(key)))
 		.map(([key, value]) => [
 			key,
-			recursive && typeof value === 'object' && value !== null
+			recursive && typeof value === "object" && value !== null
 				? filterKeys(value, patterns, true)
 				: value,
 		]),
 );
 
 export const numberIfNumeric = value => {
-	if (value === null || value === '') {
+	if (value === null || value === "") {
 		return value;
 	}
 
-	if (typeof value === 'string' && !Number.isNaN(Number(value))) {
+	if (typeof value === "string" && !Number.isNaN(Number(value))) {
 		return Number(value);
 	}
 
@@ -49,18 +49,18 @@ export const numberIfNumeric = value => {
 export function flattenObject(object) {
 	const result = {};
 
-	const flatten = (object_, prefix = '') => {
+	const flatten = (object_, prefix = "") => {
 		for (const [key, value] of Object.entries(object_)) {
 			const newKey = prefix ? `${prefix}.${key}` : key;
 
 			if (Array.isArray(value)) {
 				if (value.length === 0) {
-					result[newKey] = '';
+					result[newKey] = "";
 					continue;
 				}
 
-				result[newKey] = isArrayOfStringifiable(value) ? value.join(',') : flatten(value, prefix);
-			} else if (typeof value === 'object' && value !== null) {
+				result[newKey] = isArrayOfStringifiable(value) ? value.join(",") : flatten(value, prefix);
+			} else if (typeof value === "object" && value !== null) {
 				flatten(value, newKey);
 			} else {
 				result[newKey] = value;
@@ -75,14 +75,16 @@ export function flattenObject(object) {
 export const mapObject = (object, fn, recursive = true) => Object.fromEntries(
 	Object.entries(object).map(([key, value]) => [
 		key,
-		recursive && typeof value === 'object' && value !== null
+		recursive && typeof value === "object" && value !== null
 			? mapObject(value, fn, true)
 			: fn(value),
 	]),
 );
 
+const round = (value, decimals) => Number(new Intl.NumberFormat("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value));
+
 export const bytesToSize = bytes => {
-	const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+	const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
 	const decimals = {
 		Bytes: 0,
@@ -93,7 +95,7 @@ export const bytesToSize = bytes => {
 	};
 
 	if (bytes === 0) {
-		return '0 Byte';
+		return "0";
 	}
 
 	const i = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -101,16 +103,16 @@ export const bytesToSize = bytes => {
 	const unit = sizes[i];
 	const decimal = decimals[unit];
 
-	let value = `${size.toFixed(decimal)}`;
+	let value = `${round(size, decimal)}`;
 
-	if (value.includes('.')) {
-		value = value.replace(/\.?0+$/, '');
+	if (value.includes(".")) {
+		value = value.replace(/\.?0+$/, "");
 	}
 
 	return `${value} ${unit}`;
 };
 
-export const arrayToCSV = (array, delim = '\t') => {
+export const arrayToCSV = (array, delim = "\t") => {
 	if (array.length === 0) {
 		throw new Error("Array is empty. Cannot write CSV file.");
 	}
@@ -191,23 +193,3 @@ export function removeKeys(object, keys) {
 
 // eslint-disable-next-line unicorn/no-array-reduce
 export const pipe = (...fns) => fns.reduce((f, g) => (...arguments_) => g(f(...arguments_)));
-
-const round = (value, decimals) => Number(new Intl.NumberFormat("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value));
-
-export function bytesToSize(bytes, decimals = 2, unit) {
-	if (bytes === 0) {
-		return "0";
-	}
-
-	const k = 1024;
-	let dm = decimals < 0 ? 0 : decimals;
-	const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
-
-	const i = unit ? sizes.indexOf(unit) : Math.floor(Math.log(bytes) / Math.log(k));
-
-	if (sizes[i] === "MB") {
-		dm = 0;
-	}
-
-	return `${round(bytes / (k ** i), dm)} ${sizes[i]}`;
-}
