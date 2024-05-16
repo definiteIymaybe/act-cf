@@ -1,63 +1,121 @@
 #! /usr/bin/env node
-import fs from "node:fs/promises";
 
-export const { writeFile } = fs;
-
-const isArrayOfStings = array => array.every(item => typeof item === "string");
-
-export function flattenObject(o) {
-	const result = {};
-
-	for (const i in o) {
-		if (!Object.hasOwn(o, i)) {
-			continue;
-		}
-
-		if (Array.isArray(o[i])) {
-			result[i] = isArrayOfStings(o[i]) ? o[i].join(", ") : o[i];
-		}
-
-		if ((typeof o[i]) === "object" && o[i] !== null) {
-			const flatObject = flattenObject(o[i]);
-			for (const x in flatObject) {
-				if (!Object.hasOwn(flatObject, x)) {
-					continue;
-				}
-
-				result[i + "." + x] = flatObject[x];
-			}
-		} else {
-			result[i] = o[i];
-		}
-	}
-
-	return result;
-}
+import fs from 'node:fs/promises';
 
 export const readJSON = async file => {
 	try {
-		const data = await fs.readFile(file, "utf8");
+		const data = await fs.readFile(file, 'utf8');
 		return JSON.parse(data);
 	} catch {
 		console.error("error");
 	}
 };
 
-export const writeJSON = async (file, data, replacer = null, space = "\t") => {
+export const {writeFile} = fs;
+
+export const writeJSON = async (file, data) => {
 	try {
-		const json = JSON.stringify(data, replacer, space);
-		await fs.writeFile(file, json);
+		await fs.writeFile(file, JSON.stringify(data, null, '\t'));
 	} catch {
-		console.error("error");
+		console.error('error');
 	}
 };
 
-export const arrayToCSV = (array, delim = "\t") => {
+export const isArrayOfStringifiable = array => array.every(item => typeof item !== 'object' || item === null);
+
+export const filterKeys = (object, patterns, recursive = false) => Object.fromEntries(
+	Object.entries(object)
+		.filter(([key]) => !patterns.some(pattern => pattern.test(key)))
+		.map(([key, value]) => [
+			key,
+			recursive && typeof value === 'object' && value !== null
+				? filterKeys(value, patterns, true)
+				: value,
+		]),
+);
+
+export const numberIfNumeric = value => {
+	if (value === null || value === '') {
+		return value;
+	}
+
+	if (typeof value === 'string' && !Number.isNaN(Number(value))) {
+		return Number(value);
+	}
+
+	return value;
+};
+
+export function flattenObject(object) {
+	const result = {};
+
+	const flatten = (object_, prefix = '') => {
+		for (const [key, value] of Object.entries(object_)) {
+			const newKey = prefix ? `${prefix}.${key}` : key;
+
+			if (Array.isArray(value)) {
+				if (value.length === 0) {
+					result[newKey] = '';
+					continue;
+				}
+
+				result[newKey] = isArrayOfStringifiable(value) ? value.join(',') : flatten(value, prefix);
+			} else if (typeof value === 'object' && value !== null) {
+				flatten(value, newKey);
+			} else {
+				result[newKey] = value;
+			}
+		}
+	};
+
+	flatten(object);
+	return result;
+}
+
+export const mapObject = (object, fn, recursive = true) => Object.fromEntries(
+	Object.entries(object).map(([key, value]) => [
+		key,
+		recursive && typeof value === 'object' && value !== null
+			? mapObject(value, fn, true)
+			: fn(value),
+	]),
+);
+
+export const bytesToSize = bytes => {
+	const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+
+	const decimals = {
+		Bytes: 0,
+		KB: 0,
+		MB: 0,
+		GB: 1,
+		TB: 2,
+	};
+
+	if (bytes === 0) {
+		return '0 Byte';
+	}
+
+	const i = Math.floor(Math.log(bytes) / Math.log(1024));
+	const size = bytes / (1024 ** i);
+	const unit = sizes[i];
+	const decimal = decimals[unit];
+
+	let value = `${size.toFixed(decimal)}`;
+
+	if (value.includes('.')) {
+		value = value.replace(/\.?0+$/, '');
+	}
+
+	return `${value} ${unit}`;
+};
+
+export const arrayToCSV = (array, delim = '\t') => {
 	if (array.length === 0) {
 		throw new Error("Array is empty. Cannot write CSV file.");
 	}
 
-	const keysSet = new Set(array.flatMap(o => Object.keys(o)));
+	const keysSet = new Set(array.flatMap(object => Object.keys(object)));
 	const header = [...keysSet].join(delim);
 
 	let csv = header + "\n";

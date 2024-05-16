@@ -1,62 +1,69 @@
-name: hdata
+name: h
 on:
   schedule:
     - cron: 0/30 * * * *
   workflow_dispatch: {}
   push:
+    branches:
+      - main
     paths:
       - .github/workflows/h.yml
 
 jobs:
-  hscheduled:
+  get:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config:
+          - { token: "HP0", projectId: "HP0ID", projectName: "HP0NAME" }
+          - { token: "HP1", projectId: "HP1ID", projectName: "HP1NAME" }
     env:
+      TOKEN: ${{ secrets[matrix.config.token] }}
+      PROJECT_ID: ${{ secrets[matrix.config.projectId] }}
+      PROJECT_NAME: ${{ secrets[matrix.config.projectName] }}
       USER_NAME: ${{secrets.USER}}
-      TOKEN: ${{secrets.HTOKEN}}
       API: ${{secrets.HAPI}}
       SERVERS_FILE: data/raw/servers.json
+
     steps:
       - name: checkout
         uses: actions/checkout@v2
         with:
           token: ${{secrets.HPAT}}
 
+      - name: set file path
+        run: echo "SERVERS_FILE=data/raw/$PROJECT_ID/$PROJECT_NAME/servers.json" >> $GITHUB_ENV
+
       - name: ensure dirs
-        run: mkdir -p data/raw && mkdir -p data/processed
+        run: mkdir -p data/raw/$PROJECT_ID/$PROJECT_NAME
 
       - name: fetch API data
         run: |
           curl -X GET "${API}/servers" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type:application/json" > $SERVERS_FILE
-          node js/process-h.js
 
-      - name: process full data
-        run: node ./js/process-h.js $SERVERS_FILE
+      - name: process
+        run: |
+          node js/h.js $SERVERS_FILE $PROJECT_ID $PROJECT_NAME
+          rm $SERVERS_FILE
 
-      - name: Set current date as env variable
+  save:
+    needs: get
+    runs-on: ubuntu-latest
+    steps:
+      - name: set now
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
-      - name: push main
+      - name: push
         uses: cpina/github-action-push-to-another-repository@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
           source-directory: data/processed
+          target-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-hetzner
-          commit-message: "Full update at ${{env.NOW}}"
+          commit-message: "Update at ${{env.NOW}}"
           target-branch: main
-          create-target-branch-if-needed: true
-
-      - name: push static-props
-        uses: cpina/github-action-push-to-another-repository@main
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.HPAT }}
-        with:
-          source-directory: data/processed-static
-          destination-github-username: ${{ secrets.USER }}
-          destination-repository-name: data-hetzner
-          commit-message: "Stable properties update at ${{env.NOW}}"
-          target-branch: static-props
           create-target-branch-if-needed: true
