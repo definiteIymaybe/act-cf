@@ -17,6 +17,13 @@ jobs:
     env:
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
+      HP0: ${{ secrets.HP0 }}
+      HP0ID: ${{ secrets.HP0ID }}
+      HP0NAME: ${{ secrets.HP0NAME }}
+      HP1: ${{ secrets.HP1 }}
+      HP1ID: ${{ secrets.HP1ID }}
+      HP1NAME: ${{ secrets.HP1NAME }}
+      HPAT: ${{ secrets.HPAT }}
 
     steps:
       - name: Checkout
@@ -36,8 +43,8 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: data/processed/h
-          target-directory: data
+          source-directory: "data/processed/h"
+          target-directory: "data"
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"

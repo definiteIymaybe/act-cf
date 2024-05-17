@@ -67,10 +67,11 @@ const get = (url, token, options) => {
 
 const getVariables = (prefix = "HP") => {
 	const result = [];
+	const incorrectValues = new Set(["undefined", "null", ""]);
 
 	let i = 0;
 
-	while (i < 100) {
+	while (i < 10) {
 		let token;
 		let projectId;
 		let projectName;
@@ -84,13 +85,21 @@ const getVariables = (prefix = "HP") => {
 			return result;
 		}
 
-		if (!token || !projectId || !projectName) {
-			return result;
+		for (const value of [token, projectId, projectName]) {
+			if (!value) {
+				return result;
+			}
+
+			if (incorrectValues.has(value.toLowerCase())) {
+				return result;
+			}
 		}
 
 		result.push({ token, projectId, projectName });
 		i += 1;
 	}
+
+	return result;
 };
 
 const getData = async ({ token, projectId, projectName, items = "servers" }) => {
@@ -109,13 +118,13 @@ const getData = async ({ token, projectId, projectName, items = "servers" }) => 
 		return { ...o, project_id: projectId, project_name: projectName };
 	});
 
-	const dir = join("data", `${projectId}`, `${projectName}`);
+	const folder = join("data", "processed", "h", `${projectId}`, `${projectName}`);
 
-	await fs.mkdir(dir, { recursive: true });
+	await fs.mkdir(folder, { recursive: true });
 
 	const tsv = arrayToCSV(flattened, "\t");
-	const flatJsonPath = join(dir, `${items}.flat.json`);
-	const tsvPath = join(dir, `${items}.tsv`);
+	const flatJsonPath = join(folder, `${items}.flat.json`);
+	const tsvPath = join(folder, `${items}.tsv`);
 
 	return Promise.all([
 		writeJSON(flatJsonPath, items, { spaces: "\t" }),
@@ -125,7 +134,8 @@ const getData = async ({ token, projectId, projectName, items = "servers" }) => 
 
 const main = async () => {
 	const variables = getVariables();
-	const promises = variables.map((...vars) => getData(...vars));
+
+	const promises = variables.map((...variables_) => getData(...variables_));
 	await Promise.all(promises);
 };
 
