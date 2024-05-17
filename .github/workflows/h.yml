@@ -21,6 +21,7 @@ jobs:
       matrix:
         config:
           - { token: "HP0", projectId: "HP0ID", projectName: "HP0NAME" }
+          - { token: "HP1", projectId: "HP1ID", projectName: "HP1NAME" }
     env:
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
@@ -67,7 +68,7 @@ jobs:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
           source-directory: data-processed
-          target-directory: "data"
+          target-directory: "data/${{ env.SUBDIR }}"
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
