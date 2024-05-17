@@ -70,7 +70,7 @@ const getVariables = (prefix = "HP") => {
 
 	let i = 0;
 
-	while (true) {
+	while (i < 100) {
 		let token;
 		let projectId;
 		let projectName;
@@ -80,14 +80,16 @@ const getVariables = (prefix = "HP") => {
 			token = `${process.env[key]}`;
 			projectId = `${process.env[`${key}ID`]}`;
 			projectName = `${process.env[`${key}NAME`]}`;
-		} catch {}
+		} catch {
+			return result;
+		}
 
 		if (!token || !projectId || !projectName) {
 			return result;
 		}
 
 		result.push({ token, projectId, projectName });
-		i++;
+		i += 1;
 	}
 };
 

@@ -10,10 +10,6 @@ on:
     paths:
       - .github/workflows/h.yml
 
-concurrency:
-  group: "h-workflow-${{ github.ref }}"
-  cancel-in-progress: true
-
 jobs:
   get:
     runs-on: ubuntu-latest
