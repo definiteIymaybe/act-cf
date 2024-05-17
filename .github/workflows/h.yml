@@ -17,17 +17,10 @@ concurrency:
 jobs:
   get:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        config:
-          - { token: "HP0", projectId: "HP0ID", projectName: "HP0NAME" }
-          - { token: "HP1", projectId: "HP1ID", projectName: "HP1NAME" }
+
     env:
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
-      TOKEN: ${{ secrets[matrix.config.token] }}
-      PROJECT_ID: ${{ secrets[matrix.config.projectId] }}
-      PROJECT_NAME: ${{ secrets[matrix.config.projectName] }}
 
     steps:
       - name: Checkout
@@ -35,43 +28,22 @@ jobs:
         with:
           token: ${{ secrets.HPAT }}
 
-      - name: Set Environment Variables
-        run: |
-          echo "INPUT_DIR=data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}" >> $GITHUB_ENV
-          echo "OUTPUT_DIR=data-processed/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}" >> $GITHUB_ENV
-          echo "SERVERS_FILE=data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}/servers.json" >> $GITHUB_ENV
-
-      - name: Ensure Directories
-        run: mkdir -p ${{ env.INPUT_DIR }} ${{ env.OUTPUT_DIR }}
-
-      - name: Fetch API Data
-        run: |
-          curl -X GET "${{ env.API }}/servers" \
-            -H "Authorization: Bearer ${{ env.TOKEN }}" \
-            -H "Content-Type: application/json" -o ${{ env.SERVERS_FILE }}
-
       - name: Process data
         run: |
-          node js/h.js ${{ env.SERVERS_FILE }}
-          rm ${{ env.SERVERS_FILE }}
+          node js/h.js
 
       - name: Set Current Timestamp
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
-      - name: Verify Data-Processed Directory
-        run: ls -lah ${{ env.OUTPUT_DIR }}
-
-      - name: Push to Another Repository
-        if: ${{ matrix.config.token == 'HP1' }} # Push only after the last matrix job
+      - name: Push
         uses: cpina/github-action-push-to-another-repository@v1.7.2
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: data-processed
-          target-directory: "data/${{ env.SUBDIR }}"
+          source-directory: data/processed/h
+          target-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
           target-branch: main
           create-target-branch-if-needed: true
-
