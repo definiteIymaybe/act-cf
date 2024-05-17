@@ -2,7 +2,7 @@ name: h
 
 on:
   schedule:
-    - cron: "0/30 * * * *"
+    - cron: "0 0/3 * * *"
   workflow_dispatch: {}
   push:
     branches:
@@ -25,16 +25,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.HPAT }}
 
       - name: Set file path
-        run: echo "SERVERS_FILE=data-raw/${{ secrets[matrix.config.projectId] }}/${{ secrets[matrix.config.projectName] }}/servers.json" >> $GITHUB_ENV
+        run: echo "SERVERS_FILE=data-raw/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}/servers.json" >> $GITHUB_ENV
 
       - name: Ensure directories
         run: |
-          mkdir -p data-raw/${{ secrets[matrix.config.projectId] }}/${{ secrets[matrix.config.projectName] }}
-          mkdir -p data-processed/${{ secrets[matrix.config.projectId] }}/${{ secrets[matrix.config.projectName] }}
+          PROJECT_DIR=${{ matrix.config.projectId }}/${{ matrix.config.projectName }} && \
+          mkdir -p "data-raw/$PROJECT_DIR" "data-processed/$PROJECT_DIR"
 
       - name: Fetch API data
         run: |
@@ -46,6 +44,7 @@ jobs:
       - name: Process data
         run: |
           node js/h.js ${{ env.SERVERS_FILE }}
+          rm ${{ env.SERVERS_FILE }}
 
   save:
     needs: get
@@ -53,10 +52,6 @@ jobs:
     steps:
       - name: Set current timestamp
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
-
-      - name: Verify data-processed directory
-        run: |
-          find data-processed -type f
 
       - name: Push
         uses: cpina/github-action-push-to-another-repository@v1.7.2
@@ -68,5 +63,5 @@ jobs:
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
-          target-branch: branchx
+          target-branch: main
           create-target-branch-if-needed: true
