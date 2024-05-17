@@ -50,7 +50,8 @@ const main = async () => {
 		return;
 	}
 
-	const projectDir = join("data", "processed", projectId, projectName);
+	const { name, dir } = parse(file);
+	const projectDir = join(dir.replace("raw", "processed"), projectId, projectName);
 
 	await fs.mkdir(projectDir, { recursive: true });
 
@@ -63,7 +64,6 @@ const main = async () => {
 		});
 
 	const tsv = arrayToCSV(o, "\t");
-	const { name } = parse(basename(file));
 
 	await Promise.all([
 		writeJSON(join(projectDir, `${name}.flat.json`), o, { spaces: "\t" }),
