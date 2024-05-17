@@ -19,9 +19,6 @@ jobs:
           - { token: "HP0", projectId: "HP0ID", projectName: "HP0NAME" }
           - { token: "HP1", projectId: "HP1ID", projectName: "HP1NAME" }
     env:
-      TOKEN: ${{ secrets[matrix.config.token] }}
-      PROJECT_ID: ${{ secrets[matrix.config.projectId] }}
-      PROJECT_NAME: ${{ secrets[matrix.config.projectName] }}
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
 
@@ -32,21 +29,18 @@ jobs:
           token: ${{ secrets.HPAT }}
 
       - name: Set file path
-        run: echo "SERVERS_FILE=data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}/servers.json" >> $GITHUB_ENV
+        run: echo "SERVERS_FILE=data-raw/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}/servers.json" >> $GITHUB_ENV
 
       - name: Ensure directories
         run: |
-          mkdir -p data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}
-          mkdir -p data-processed/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}
-
+          mkdir -p data-raw/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}
+          mkdir -p data-processed/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}
 
       - name: Fetch API data
         run: |
           curl -X GET "${{ env.API }}/servers" \
-              -H "Authorization: Bearer ${{ env.TOKEN }}" \
+              -H "Authorization: Bearer ${{ secrets[matrix.config.token] }}" \
               -H "Content-Type: application/json" -o ${{ env.SERVERS_FILE }}
-        env:
-          TOKEN: ${{ secrets[matrix.config.token] }}
         continue-on-error: false
 
       - name: Process data
@@ -61,6 +55,11 @@ jobs:
       - name: Set current timestamp
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
+      - name: Verify data-processed directory
+        run: |
+          ls -al data-processed
+          ls -al data-processed/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}
+
       - name: Push
         uses: cpina/github-action-push-to-another-repository@v1.7.2
         env:
@@ -71,5 +70,5 @@ jobs:
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
-          target-branch: brranch
+          target-branch: branch # Ensure this is the correct branch name
           create-target-branch-if-needed: true

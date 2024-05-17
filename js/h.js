@@ -51,7 +51,7 @@ const main = async () => {
 	}
 
 	const { name, dir } = parse(file);
-	const projectDir = join(dir.replace("raw", "processed"), projectId, projectName);
+	const projectDir = dir.replace("raw", "processed");
 
 	await fs.mkdir(projectDir, { recursive: true });
 
