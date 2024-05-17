@@ -41,12 +41,6 @@ const transformObject = o => {
 };
 
 const main = async () => {
-	// run: echo "SERVERS_FILE=data/raw/$PROJECT_ID/$PROJECT_NAME/servers.json" >> $GITHUB_ENV
-	// - name: process
-	// run: |
-	//   node js/h.js $SERVERS_FILE
-	//   rm $SERVERS_FILE
-
 	const file = process.argv[2];
 	const projectId = process.env.PROJECT_ID;
 	const projectName = process.env.PROJECT_NAME;
@@ -60,11 +54,7 @@ const main = async () => {
 
 	await fs.mkdir(projectDir, { recursive: true });
 
-	console.log({ file, projectId, projectName });
-
 	const json = await readJSON(file);
-
-	console.log({ json });
 
 	const o = json.servers
 		.map(item => {

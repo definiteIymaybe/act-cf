@@ -5,10 +5,9 @@ import fs from "node:fs/promises";
 export const readJSON = async file => {
 	try {
 		const data = await fs.readFile(file, "utf8");
-		console.log({ data });
 		return JSON.parse(data);
-	} catch (error) {
-		console.error(error);
+	} catch {
+		console.error("error");
 	}
 };
 
