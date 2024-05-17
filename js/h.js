@@ -103,7 +103,7 @@ const getVariables = (prefix = "HP") => {
 };
 
 const getData = async ({ token, projectId, projectName, items = "servers" }) => {
-	const url = `${process.env.HAPI}/${items}`;
+	const url = `${process.env.API}/${items}`;
 	const response = await get(url, token);
 
 	if (!response.ok) {
