@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   get:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         config:
