@@ -34,8 +34,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.HPAT }}
-        retry:
-          max-attempts: 3
 
       - name: Set Environment Variables
         run: |
@@ -78,5 +76,4 @@ jobs:
           commit-message: "Update at ${{ env.NOW }}"
           target-branch: main
           create-target-branch-if-needed: true
-        retry:
-          max-attempts: 3
+
