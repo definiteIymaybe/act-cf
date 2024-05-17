@@ -49,8 +49,6 @@ jobs:
           curl -X GET "${{ env.API }}/servers" \
             -H "Authorization: Bearer ${{ env.TOKEN }}" \
             -H "Content-Type: application/json" -o ${{ env.SERVERS_FILE }}
-        retry:
-          max-attempts: 3
 
       - name: Process data
         run: |
