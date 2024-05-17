@@ -1,7 +1,8 @@
 name: h
+
 on:
   schedule:
-    - cron: 0/30 * * * *
+    - cron: "0/30 * * * *"
   workflow_dispatch: {}
   push:
     branches:
@@ -21,42 +22,45 @@ jobs:
       TOKEN: ${{ secrets[matrix.config.token] }}
       PROJECT_ID: ${{ secrets[matrix.config.projectId] }}
       PROJECT_NAME: ${{ secrets[matrix.config.projectName] }}
-      USER_NAME: ${{secrets.USER}}
-      API: ${{secrets.HAPI}}
+      USER_NAME: ${{ secrets.USER }}
+      API: ${{ secrets.HAPI }}
       SERVERS_FILE: data/raw/servers.json
 
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v2
         with:
-          token: ${{secrets.HPAT}}
+          token: ${{ secrets.HPAT }}
 
-      - name: set file path
-        run: echo "SERVERS_FILE=data/raw/$PROJECT_ID/$PROJECT_NAME/servers.json" >> $GITHUB_ENV
+      - name: Set file path
+        run: echo "SERVERS_FILE=data/raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}/servers.json" >> $GITHUB_ENV
 
-      - name: ensure dirs
-        run: mkdir -p data/raw/$PROJECT_ID/$PROJECT_NAME
+      - name: Ensure directories
+        run: mkdir -p data/raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}
 
-      - name: fetch API data
+      - name: Fetch API data
         run: |
-          curl -X GET "${HAPI}/servers" \
-              -H "Authorization: Bearer ${HTOKEN}" \
-              -H "Content-Type:application/json" > $SERVERS_FILE
+          curl -X GET "${{ env.API }}/servers" \
+              -H "Authorization: Bearer ${{ env.TOKEN }}" \
+              -H "Content-Type: application/json" -o ${{ env.SERVERS_FILE }}
+        env:
+          TOKEN: ${{ secrets[matrix.config.token] }}
+        continue-on-error: false
 
-      - name: process
+      - name: Process data
         run: |
-          node js/h.js $SERVERS_FILE \
-          rm $SERVERS_FILE
+          node js/h.js ${{ env.SERVERS_FILE }}
+          rm ${{ env.SERVERS_FILE }}
 
   save:
     needs: get
     runs-on: ubuntu-latest
     steps:
-      - name: set now
+      - name: Set current timestamp
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
-      - name: push
-        uses: cpina/github-action-push-to-another-repository@main
+      - name: Push
+        uses: cpina/github-action-push-to-another-repository@v1.7.2
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
@@ -64,6 +68,6 @@ jobs:
           target-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-hetzner
-          commit-message: "Update at ${{env.NOW}}"
+          commit-message: "Update at ${{ env.NOW }}"
           target-branch: main
           create-target-branch-if-needed: true
