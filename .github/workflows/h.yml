@@ -10,6 +10,10 @@ on:
     paths:
       - .github/workflows/h.yml
 
+concurrency:
+  group: "h-workflow-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   get:
     runs-on: ubuntu-latest
@@ -21,47 +25,58 @@ jobs:
     env:
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
+      TOKEN: ${{ secrets[matrix.config.token] }}
+      PROJECT_ID: ${{ secrets[matrix.config.projectId] }}
+      PROJECT_NAME: ${{ secrets[matrix.config.projectName] }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.HPAT }}
+        retry:
+          max-attempts: 3
 
-      - name: Set file path
-        run: echo "SERVERS_FILE=data-raw/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}/servers.json" >> $GITHUB_ENV
-
-      - name: Ensure directories
+      - name: Set Environment Variables
         run: |
-          PROJECT_DIR=${{ matrix.config.projectId }}/${{ matrix.config.projectName }} && \
-          mkdir -p "data-raw/$PROJECT_DIR" "data-processed/$PROJECT_DIR"
+          echo "INPUT_DIR=data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}" >> $GITHUB_ENV
+          echo "OUTPUT_DIR=data-processed/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}" >> $GITHUB_ENV
+          echo "SERVERS_FILE=data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}/servers.json" >> $GITHUB_ENV
 
-      - name: Fetch API data
+      - name: Ensure Directories
+        run: mkdir -p ${{ env.INPUT_DIR }} ${{ env.OUTPUT_DIR }}
+
+      - name: Fetch API Data
         run: |
           curl -X GET "${{ env.API }}/servers" \
-              -H "Authorization: Bearer ${{ secrets[matrix.config.token] }}" \
-              -H "Content-Type: application/json" -o ${{ env.SERVERS_FILE }}
-        continue-on-error: false
+            -H "Authorization: Bearer ${{ env.TOKEN }}" \
+            -H "Content-Type: application/json" -o ${{ env.SERVERS_FILE }}
+        retry:
+          max-attempts: 3
 
       - name: Process data
         run: |
           node js/h.js ${{ env.SERVERS_FILE }}
           rm ${{ env.SERVERS_FILE }}
 
-  save:
-    needs: get
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set current timestamp
+      - name: Set Current Timestamp
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
-      - name: Push
+      - name: Verify Data-Processed Directory
+        run: ls -lah ${{ env.OUTPUT_DIR }}
+
+      - name: Push to Another Repository
+        if: ${{ matrix.config.token == 'HP1' }} # Push only after the last matrix job
         uses: cpina/github-action-push-to-another-repository@v1.7.2
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: "data-processed"
+          source-directory: data-processed
           target-directory: "data"
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
           target-branch: main
           create-target-branch-if-needed: true
+        retry:
+          max-attempts: 3
