@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import {basename, join, parse} from 'node:path';
-import process from 'node:process';
-import fs from 'node:fs/promises';
-import {arrayToCSV, bytesToSize, readJSON, filterKeys, flattenObject, mapObject, numberIfNumeric, writeJSON} from './util.js';
+import { basename, join, parse } from "node:path";
+import process from "node:process";
+import fs from "node:fs/promises";
+import { arrayToCSV, bytesToSize, readJSON, filterKeys, flattenObject, mapObject, numberIfNumeric, writeJSON } from "./util.js";
 
-const processPrices = ({server_type: {prices}, datacenter: {location: {name}}}) => {
+const processPrices = ({ server_type: { prices }, datacenter: { location: { name } } }) => {
 	let currentLocationPrice = null;
 	let isBestPrice = true;
 
@@ -19,11 +19,11 @@ const processPrices = ({server_type: {prices}, datacenter: {location: {name}}}) 
 		}
 	}
 
-	return {currentLocationPrice, isBestPrice};
+	return { currentLocationPrice, isBestPrice };
 };
 
 const transformObject = o => {
-	const {currentLocationPrice, isBestPrice} = processPrices(o);
+	const { currentLocationPrice, isBestPrice } = processPrices(o);
 
 	o.server_type.included_traffic = bytesToSize(o.server_type.included_traffic);
 	o.price = Number.parseFloat(currentLocationPrice.price_monthly.gross);
@@ -41,33 +41,42 @@ const transformObject = o => {
 };
 
 const main = async () => {
+	// run: echo "SERVERS_FILE=data/raw/$PROJECT_ID/$PROJECT_NAME/servers.json" >> $GITHUB_ENV
+	// - name: process
+	// run: |
+	//   node js/h.js $SERVERS_FILE
+	//   rm $SERVERS_FILE
+
 	const file = process.argv[2];
-	const projectId = process.argv[3];
-	const projectName = process.argv[4];
+	const projectId = process.env.PROJECT_ID;
+	const projectName = process.env.PROJECT_NAME;
 
 	if (!file || !projectId || !projectName) {
-		console.error('Missing required arguments: file, projectId, projectName');
+		console.error("Missing required arguments: file, projectId, projectName");
 		return;
 	}
 
-	const baseDir = './data/processed';
-	const projectDir = join(baseDir, projectId, projectName);
+	const projectDir = join("data", "processed", projectId, projectName);
 
-	await fs.mkdir(projectDir, {recursive: true});
+	await fs.mkdir(projectDir, { recursive: true });
+
+	console.log({ file, projectId, projectName });
 
 	const json = await readJSON(file);
+
+	console.log({ json });
 
 	const o = json.servers
 		.map(item => {
 			const o = transformObject(item);
-			return {...o, project_id: projectId, project_name: projectName};
+			return { ...o, project_id: projectId, project_name: projectName };
 		});
 
-	const tsv = arrayToCSV(o, '\t');
-	const {name} = parse(basename(file));
+	const tsv = arrayToCSV(o, "\t");
+	const { name } = parse(basename(file));
 
 	await Promise.all([
-		writeJSON(join(projectDir, `${name}.flat.json`), o, {spaces: '\t'}),
+		writeJSON(join(projectDir, `${name}.flat.json`), o, { spaces: "\t" }),
 		fs.writeFile(join(projectDir, `${name}.tsv`), tsv),
 	]);
 };
