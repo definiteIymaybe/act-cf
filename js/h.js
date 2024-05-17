@@ -64,11 +64,19 @@ const main = async () => {
 		});
 
 	const tsv = arrayToCSV(o, "\t");
+	const flatJsonPath = join(projectDir, `${name}.flat.json`);
+	const tsvPath = join(projectDir, `${name}.tsv`);
 
-	await Promise.all([
-		writeJSON(join(projectDir, `${name}.flat.json`), o, { spaces: "\t" }),
-		fs.writeFile(join(projectDir, `${name}.tsv`), tsv),
-	]);
+	await writeJSON(flatJsonPath, o, { spaces: "\t" });
+
+	console.log("saved flat json", flatJsonPath);
+
+	await fs.writeFile(tsvPath, tsv);
+
+	console.log("saved tsv", tsvPath);
+
+	// await Promise.all([
+	// ]);
 };
 
 await main();

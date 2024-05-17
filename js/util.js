@@ -13,13 +13,7 @@ export const readJSON = async file => {
 
 export const { writeFile } = fs;
 
-export const writeJSON = async (file, data) => {
-	try {
-		await fs.writeFile(file, JSON.stringify(data, null, "\t"));
-	} catch {
-		console.error("error");
-	}
-};
+export const writeJSON = async (file, data) => fs.writeFile(file, JSON.stringify(data, null, "\t"));
 
 export const isArrayOfStringifiable = array => array.every(item => typeof item !== "object" || item === null);
 

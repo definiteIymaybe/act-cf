@@ -29,12 +29,12 @@ jobs:
           token: ${{ secrets.HPAT }}
 
       - name: Set file path
-        run: echo "SERVERS_FILE=data-raw/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}/servers.json" >> $GITHUB_ENV
+        run: echo "SERVERS_FILE=data-raw/${{ secrets[matrix.config.projectId] }}/${{ secrets[matrix.config.projectName] }}/servers.json" >> $GITHUB_ENV
 
       - name: Ensure directories
         run: |
-          mkdir -p data-raw/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}
-          mkdir -p data-processed/${{ matrix.config.projectId }}/${{ matrix.config.projectName }}
+          mkdir -p data-raw/${{ secrets[matrix.config.projectId] }}/${{ secrets[matrix.config.projectName] }}
+          mkdir -p data-processed/${{ secrets[matrix.config.projectId] }}/${{ secrets[matrix.config.projectName] }}
 
       - name: Fetch API data
         run: |
@@ -68,5 +68,5 @@ jobs:
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
-          target-branch: branch # Ensure this is the correct branch name
+          target-branch: branchx
           create-target-branch-if-needed: true
