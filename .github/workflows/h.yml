@@ -16,12 +16,11 @@ concurrency:
 
 jobs:
   get:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         config:
           - { token: "HP0", projectId: "HP0ID", projectName: "HP0NAME" }
-          - { token: "HP1", projectId: "HP1ID", projectName: "HP1NAME" }
     env:
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
