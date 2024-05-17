@@ -24,7 +24,6 @@ jobs:
       PROJECT_NAME: ${{ secrets[matrix.config.projectName] }}
       USER_NAME: ${{ secrets.USER }}
       API: ${{ secrets.HAPI }}
-      SERVERS_FILE: data/raw/servers.json
 
     steps:
       - name: Checkout
@@ -33,10 +32,13 @@ jobs:
           token: ${{ secrets.HPAT }}
 
       - name: Set file path
-        run: echo "SERVERS_FILE=data/raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}/servers.json" >> $GITHUB_ENV
+        run: echo "SERVERS_FILE=data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}/servers.json" >> $GITHUB_ENV
 
       - name: Ensure directories
-        run: mkdir -p data/raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}
+        run: |
+          mkdir -p data-raw/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}
+          mkdir -p data-processed/${{ env.PROJECT_ID }}/${{ env.PROJECT_NAME }}
+
 
       - name: Fetch API data
         run: |
@@ -64,7 +66,7 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: "data/processed"
+          source-directory: "data-processed"
           target-directory: "data"
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: "data-hetzner"
