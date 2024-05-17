@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.HPAT }}
 
@@ -64,10 +64,10 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.HPAT }}
         with:
-          source-directory: data/processed
-          target-directory: data
+          source-directory: "data/processed"
+          target-directory: "data"
           destination-github-username: ${{ secrets.USER }}
-          destination-repository-name: data-hetzner
+          destination-repository-name: "data-hetzner"
           commit-message: "Update at ${{ env.NOW }}"
-          target-branch: main
+          target-branch: brranch
           create-target-branch-if-needed: true
