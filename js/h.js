@@ -127,7 +127,7 @@ const getData = async ({ token, projectId, projectName, items = "servers" }) => 
 	const tsvPath = join(folder, `${items}.tsv`);
 
 	return Promise.all([
-		writeJSON(flatJsonPath, items, { spaces: "\t" }),
+		writeJSON(flatJsonPath, flattened, { spaces: "\t" }),
 		fs.writeFile(tsvPath, tsv),
 	]);
 };
