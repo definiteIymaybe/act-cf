@@ -57,12 +57,24 @@ const transformObject = o => {
 	return o;
 };
 
-const get = (url, token, options) => {
+const get = async (url, token, options) => {
 	const headers = {
 		"Content-Type": "application/json",
 		Authorization: `Bearer ${token}`,
 	};
-	return fetch(url, { headers, ...options });
+
+	try {
+		const response = await fetch(url, { headers, ...options });
+
+		if (!response.ok) {
+			console.error("Failed to fetch data");
+			return null;
+		}
+
+		return response;
+	} catch {
+		return null;
+	}
 };
 
 const getVariables = (prefix = "HP") => {
@@ -78,24 +90,22 @@ const getVariables = (prefix = "HP") => {
 
 		try {
 			const key = `${prefix}${i}`;
-			token = `${process.env[key]}`;
-			projectId = `${process.env[`${key}ID`]}`;
-			projectName = `${process.env[`${key}NAME`]}`;
+			token = process.env[key];
+			projectId = process.env[`${key}ID`];
+			projectName = process.env[`${key}NAME`];
+
+			if (!token || !projectId || !projectName
+                || incorrectValues.has(token.toLowerCase())
+                || incorrectValues.has(projectId.toLowerCase())
+                || incorrectValues.has(projectName.toLowerCase())) {
+				break;
+			}
+
+			result.push({ token, projectId, projectName });
 		} catch {
-			return result;
+			break;
 		}
 
-		for (const value of [token, projectId, projectName]) {
-			if (!value) {
-				return result;
-			}
-
-			if (incorrectValues.has(value.toLowerCase())) {
-				return result;
-			}
-		}
-
-		result.push({ token, projectId, projectName });
 		i += 1;
 	}
 
@@ -103,33 +113,37 @@ const getVariables = (prefix = "HP") => {
 };
 
 const getData = async ({ token, projectId, projectName, items = "servers" }) => {
-	const url = `${process.env.API}/${items}`;
+	const url = `${process.env.HAPI}/${items}`;
+
 	const response = await get(url, token);
 
-	if (!response.ok) {
+	if (!response) {
 		console.error("Failed to fetch data");
 		return;
 	}
 
-	const json = await response.json();
+	try {
+		const json = await response.json();
 
-	const flattened = json[items].map(item => {
-		const o = transformObject(item);
-		return { ...o, project_id: projectId, project_name: projectName };
-	});
+		const flattened = json[items].map(item => {
+			const o = transformObject(item);
+			return { ...o, project_id: projectId, project_name: projectName };
+		});
 
-	const folder = join("data", "processed", "h", `${projectId}`, `${projectName}`);
+		const folder = join("data", "processed", "h", `${projectId}`, `${projectName}`);
+		await fs.mkdir(folder, { recursive: true });
 
-	await fs.mkdir(folder, { recursive: true });
+		const tsv = arrayToCSV(flattened, "\t");
+		const flatJsonPath = join(folder, `${items}.flat.json`);
+		const tsvPath = join(folder, `${items}.tsv`);
 
-	const tsv = arrayToCSV(flattened, "\t");
-	const flatJsonPath = join(folder, `${items}.flat.json`);
-	const tsvPath = join(folder, `${items}.tsv`);
-
-	return Promise.all([
-		writeJSON(flatJsonPath, flattened, { spaces: "\t" }),
-		fs.writeFile(tsvPath, tsv),
-	]);
+		await Promise.all([
+			writeJSON(flatJsonPath, flattened, { spaces: "\t" }),
+			fs.writeFile(tsvPath, tsv),
+		]);
+	} catch {
+		console.error("Error processing response");
+	}
 };
 
 const main = async () => {

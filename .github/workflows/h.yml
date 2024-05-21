@@ -16,13 +16,16 @@ jobs:
 
     env:
       USER_NAME: ${{ secrets.USER }}
-      API: ${{ secrets.HAPI }}
+      HAPI: ${{ secrets.HAPI }}
       HP0: ${{ secrets.HP0 }}
       HP0ID: ${{ secrets.HP0ID }}
       HP0NAME: ${{ secrets.HP0NAME }}
       HP1: ${{ secrets.HP1 }}
       HP1ID: ${{ secrets.HP1ID }}
       HP1NAME: ${{ secrets.HP1NAME }}
+      HP2: ${{ secrets.HP2 }}
+      HP2ID: ${{ secrets.HP2ID }}
+      HP2NAME: ${{ secrets.HP2NAME }}
       HPAT: ${{ secrets.HPAT }}
 
     steps:
