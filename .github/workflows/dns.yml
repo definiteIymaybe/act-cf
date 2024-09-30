@@ -1,61 +1,119 @@
 name: dns
 on:
   schedule:
-    - cron: 0/30 * * * *
+    - cron: "0/30 * * * *"
   workflow_dispatch: {}
   push:
     paths:
       - .github/workflows/dns.yml
+
 jobs:
   dns-scheduled:
     runs-on: ubuntu-latest
     env:
-      RAW_DIR: data/dns/raw
-      TOKEN: ${{secrets.TOKEN}}
-      API: ${{secrets.API}}
+      RAW_DIR: "data/dns/raw"
+      TOKEN: ${{ secrets.TOKEN }}
+      API: ${{ secrets.API }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          token: ${{secrets.PAT}}
+          token: ${{ secrets.PAT }}
+
       - name: ensure dirs
-        run: mkdir -p "${RAW_DIR}/records" && mkdir -p data/dns/records
+        run: |
+          mkdir -p "${RAW_DIR}/records"
+          mkdir -p "data/dns/records"
+
+      - name: Test API Key Validity
+        id: test-api-key
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API}/zones" \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type:application/json")
+
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "API key is invalid or expired. HTTP status: $RESPONSE"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Test GitHub PAT validity
+        id: test-pat
+        run: |
+          PAT_VALID=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $PAT" https://api.github.com/user)
+          if [ "$PAT_VALID" -ne 200 ]; then
+            echo "GitHub PAT is invalid or expired. HTTP status: $PAT_VALID"
+            exit 1
+          fi
+        shell: bash
+
       - name: get zones
         run: |
           ZONES_FILE="${RAW_DIR}/zones.json"
-          curl -X GET "${API}/zones" \
+          RESPONSE=$(curl -s -X GET "${API}/zones" \
           -H "Authorization: Bearer $TOKEN" \
-          -H "Content-Type:application/json" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result'> "$ZONES_FILE"
-          node index.js "$ZONES_FILE"
+          -H "Content-Type:application/json")
+
+          echo "${RESPONSE}" | jq --indent 2 '.result[] |= (if .development_mode? and (.development_mode < 0) then .development_mode = "-" else . end) | .result' > "$ZONES_FILE"
+
+          if ! jq empty "${ZONES_FILE}"; then
+            echo "Invalid JSON response"
+            exit 1
+          fi
+
+          cat "${ZONES_FILE}"
+          node index.js "${ZONES_FILE}"
+
       - name: get records by zone id
         run: |
-          JSON=$(cat data/dns/raw/zones.json)
-          echo json: $JSON
-          IDS=$(echo "$JSON" | jq -r '.[].id')
-          echo ids: $IDS
+          ZONES_FILE="${RAW_DIR}/zones.json"
+          if [ ! -f "${ZONES_FILE}" ]; then
+            echo "Zones file does not exist: ${ZONES_FILE}"
+            exit 1
+          fi
 
-          for ID in $IDS; do
-            NAME=$(echo "$JSON" | jq -r --arg zoneId "$ID" '.[] | select(.id == $zoneId) | .name')
-            echo name: $NAME
+          mkdir -p "data/dns/raw/zones"
+
+
+          JSON=$(cat "${ZONES_FILE}")
+          IDS=$(echo "${JSON}" | jq -r '.[].id')
+
+          for ID in $(echo "${IDS}"); do
+
+            NAME=$(echo "${JSON}" | jq -r --arg zoneId "${ID}" '.[] | select(.id == $zoneId) | .name')
             URL="${API}/zones/${ID}/dns_records?per_page=500"
-            echo url $URL
 
-            curl -X GET $URL \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" | jq --indent 2 '.result' > "${RAW_DIR}/records/${NAME}.json"
-            node index.js "${RAW_DIR}/records/${NAME}.json"
+            RESPONSE=$(curl -s -X GET "${URL}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Content-Type: application/json")
+            
+            mkdir -p "data/dns/records"
+            mkdir -p "data/dns/raw/records"
+
+            echo "${RESPONSE}" > "data/dns/raw/records/${NAME}.json"
+            echo "${RESPONSE}" | jq --indent 2 '.result' > "data/dns/records/${NAME}.json"
+
+            
+            if ! jq empty "data/dns/records/${NAME}.json"; then
+              echo "Invalid JSON response for zone ${NAME}"
+              exit 1
+            fi
+            
+            node index.js "data/dns/records/${NAME}.json"
           done
 
       - name: Set current date as env variable
         run: echo "NOW=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_ENV
 
       - name: push
-        uses: cpina/github-action-push-to-another-repository@main
+        uses: cpina/github-action-push-to-another-repository@v1.7.2
+
         env:
           API_TOKEN_GITHUB: ${{ secrets.PAT }}
         with:
           source-directory: data
           destination-github-username: ${{ secrets.USER }}
           destination-repository-name: data-cf-dns
-          commit-message: Update data ${{env.NOW}}
+          commit-message: Update data ${{ env.NOW }}
           target-branch: main
